@@ -1,4 +1,4 @@
-package pbft
+package chainutil
 
 import (
 	"crypto/ed25519"
@@ -75,10 +75,11 @@ func TestHash(t *testing.T) {
 func TestSign(t *testing.T) {
 	secret := "test-secret"
 	privateKey, _ := GenKeypair(secret)
+	privateKeyStr := Key2Str(privateKey)
 	message := "A test message"
 	expected := string(ed25519.Sign(privateKey, []byte(message)))
 
-	actual := Sign(privateKey, message)
+	actual := Sign(privateKeyStr, message)
 
 	if expected != actual {
 		t.Errorf("Expected, %s\nGot, %s", expected, actual)
@@ -90,9 +91,52 @@ func TestVerify(t *testing.T) {
 	secret := "test secret"
 	message := "This is a test message"
 	privateKey, publicKey := GenKeypair(secret)
+	publicKeyStr := Key2Str(publicKey)
 	signature := string(ed25519.Sign(privateKey, []byte(message)))
 
-	if !Verify(publicKey, message, signature) {
+	if !Verify(publicKeyStr, message, signature) {
 		t.Errorf("Failed to verify signature with generated key pair!")
 	}
+}
+
+// test the TestKey2Str function
+func TestKey2Str(t *testing.T) {
+	privateKey, publicKey := GenKeypair("test secret")
+
+	if hex.EncodeToString(privateKey) != Key2Str(privateKey) {
+		t.Errorf(
+			"Key2Str() failed\nwanted\t%s\ngot\t%s\n",
+			hex.EncodeToString(privateKey),
+			Key2Str(privateKey))
+	}
+	if hex.EncodeToString(publicKey) != Key2Str(publicKey) {
+		t.Errorf(
+			"Key2Str() failed\nwanted\t%s\ngot\t%s\n",
+			hex.EncodeToString(publicKey),
+			Key2Str(publicKey))
+	}
+}
+
+// test the Str2Key function
+func TestStr2Key(t *testing.T) {
+	privateKey, publicKey := GenKeypair("test secret")
+	privateKeyStr := Key2Str(privateKey)
+	publicKeyStr := Key2Str(publicKey)
+
+	if string(privateKey) != string(Str2Key(privateKeyStr, false)) {
+		t.Errorf(
+			"Str2Key() failed\nwanted\t%s\ngot\t%s\n",
+			privateKey,
+			Str2Key(privateKeyStr, false))
+	}
+	if string(publicKey) != string(Str2Key(publicKeyStr, true)) {
+		t.Errorf(
+			"Str2Key() failed\nwanted\t%s\ngot\t%s\n",
+			publicKey,
+			Str2Key(publicKeyStr, true))
+	}
+}
+
+func TestStr2PublicKey(t *testing.T) {
+
 }
