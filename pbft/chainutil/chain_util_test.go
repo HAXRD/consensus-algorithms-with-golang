@@ -90,9 +90,10 @@ func TestSign(t *testing.T) {
 func TestVerify(t *testing.T) {
 	secret := "test secret"
 	message := "This is a test message"
+	hash := Hash(message)
 	privateKey, publicKey := GenKeypair(secret)
 	publicKeyStr := Key2Str(publicKey)
-	signature := string(ed25519.Sign(privateKey, []byte(message)))
+	signature := string(ed25519.Sign(privateKey, []byte(hash)))
 
 	if !Verify(publicKeyStr, message, signature) {
 		t.Errorf("Failed to verify signature with generated key pair!")

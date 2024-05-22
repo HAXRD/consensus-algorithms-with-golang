@@ -54,7 +54,8 @@ func Sign(privateKeyStr string, data string) string {
 // TODO: consider move this to Wallet
 func Verify(publicKeyStr string, message string, signature string) bool {
 	publicKey := Str2Key(publicKeyStr, true)
-	return ed25519.Verify(publicKey, []byte(message), []byte(signature))
+	hash := Hash(message)
+	return ed25519.Verify(publicKey, []byte(hash), []byte(signature))
 }
 
 // Key2Str converts given Key to string
