@@ -38,9 +38,9 @@ func (w *Wallet) Sign(data string) string {
 	return signature
 }
 
-// Verify the message with given wallet and signature
-func (w *Wallet) Verify(message string, signature string) bool {
-	return chainutil.Verify(chainutil.Key2Str(w.publicKey), message, signature)
+// Verify the hash with given wallet and signature
+func (w *Wallet) Verify(hash string, signature string) bool {
+	return chainutil.Verify(chainutil.Key2Str(w.publicKey), hash, signature)
 }
 
 // CreateTransaction creates a new transaction

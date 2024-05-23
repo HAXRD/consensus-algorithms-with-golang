@@ -53,7 +53,7 @@ func NewTransaction(wallet Wallet, to string, data string) *Transaction {
 func VerifyTransaction(transaction Transaction) bool {
 	return chainutil.Verify(
 		transaction.from,
-		transaction.message,
+		transaction.hash,
 		transaction.signature,
 	)
 }
