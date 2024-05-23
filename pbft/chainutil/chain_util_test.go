@@ -95,7 +95,7 @@ func TestVerify(t *testing.T) {
 	publicKeyStr := Key2Str(publicKey)
 	signature := string(ed25519.Sign(privateKey, []byte(hash)))
 
-	if !Verify(publicKeyStr, message, signature) {
+	if !Verify(publicKeyStr, hash, signature) {
 		t.Errorf("Failed to verify signature with generated key pair!")
 	}
 }
@@ -138,6 +138,18 @@ func TestStr2Key(t *testing.T) {
 	}
 }
 
-func TestStr2PublicKey(t *testing.T) {
-
+func TestConversionAndRecover(t *testing.T) {
+	privateKey, publicKey := GenKeypair("test secret")
+	privateKeyStr := Key2Str(privateKey)
+	publicKeyStr := Key2Str(publicKey)
+	newPrivateKey := Str2Key(privateKeyStr, false)
+	newPublicKey := Str2Key(publicKeyStr, true)
+	newPrivateKeyStr := Key2Str(newPrivateKey)
+	newPublicKeyStr := Key2Str(newPublicKey)
+	if newPrivateKeyStr != privateKeyStr {
+		t.Errorf("Failed to convert and recover privateKey")
+	}
+	if newPublicKeyStr != publicKeyStr {
+		t.Errorf("Failed to convert and recover publicKey")
+	}
 }
