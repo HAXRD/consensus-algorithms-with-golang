@@ -14,15 +14,15 @@ type Prepare struct {
 	signature string `json:"signature"`
 }
 
-func NewPrepare(blockHash string, publicKey string, signature string) *Prepare {
-	return &Prepare{blockHash: blockHash, publicKey: publicKey, signature: signature}
+func NewPrepare(wallet Wallet, block Block) *Prepare {
+	return &Prepare{blockHash: block.hash, publicKey: chainutil.Key2Str(wallet.publicKey), signature: wallet.Sign(block.hash)}
 }
 
 /**
 PreparePool stores a list of prepare message for "each" block
 
 1. NewPreparePool: create a new prepare pool
-2. InitPrepareForGivenBlock: init an empty list for given blockHash
+2. InitPrepareForGivenBlock: init an empty list for a given blockHash
 3. AddPrepare: pushes a prepare message for a blockhash into the list
 4. PrepareExists: check if a given prepare message already exists
 5. IsPrepareValid: check if the prepare message is valid or not

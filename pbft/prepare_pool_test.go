@@ -6,14 +6,20 @@ import (
 )
 
 func TestNewPrepare(t *testing.T) {
-	blockHash := "blockHash"
-	publicKey := "publicKey"
-	signature := "signature"
-	prepare := NewPrepare(blockHash, publicKey, signature)
+	wallet := NewWallet("secret")
+	timestamp := "timestamp"
+	lastHash := "lastHash"
+	hash := "hash"
+	data := []Transaction{}
+	proposer := chainutil.Key2Str(wallet.publicKey)
+	signature := wallet.Sign(hash)
+	sequenceNum := uint64(1)
 
-	if blockHash != prepare.blockHash ||
-		publicKey != prepare.publicKey ||
-		signature != prepare.signature {
+	block := NewBlock(timestamp, lastHash, hash, data, proposer, signature, sequenceNum)
+	prepare := NewPrepare(*wallet, *block)
+	if block.hash != prepare.blockHash ||
+		chainutil.Key2Str(wallet.publicKey) != prepare.publicKey ||
+		block.signature != prepare.signature {
 		t.Error("NewPrepare failed")
 	}
 }
@@ -37,24 +43,22 @@ func TestPreparePool_InitPrepareForGivenBlock(t *testing.T) {
 
 func TestPreparePool_AddPrepare2Pool(t *testing.T) {
 	preparePool := NewPreparePool()
-	blockHash := "blockHash"
-	publicKey := "publicKey"
-	signature := "signature"
-	prepare := NewPrepare(blockHash, publicKey, signature)
-	preparePool.InitPrepareForGivenBlock(blockHash)
+	wallet := NewWallet("secret")
+	block := Genesis()
+	prepare := NewPrepare(*wallet, block)
+	preparePool.InitPrepareForGivenBlock(block.hash)
 	preparePool.AddPrepare2Pool(*prepare)
-	if preparePool.mapOfList[blockHash][0] != *prepare {
+	if preparePool.mapOfList[block.hash][0] != *prepare {
 		t.Error("AddPrepare2Pool failed")
 	}
 }
 
 func TestPreparePool_PrepareExists(t *testing.T) {
 	preparePool := NewPreparePool()
-	blockHash := "blockHash"
-	publicKey := "publicKey"
-	signature := "signature"
-	prepare := NewPrepare(blockHash, publicKey, signature)
-	preparePool.InitPrepareForGivenBlock(blockHash)
+	wallet := NewWallet("secret")
+	block := Genesis()
+	prepare := NewPrepare(*wallet, block)
+	preparePool.InitPrepareForGivenBlock(block.hash)
 	if preparePool.PrepareExists(*prepare) {
 		t.Error("PrepareExists failed")
 	}
@@ -66,12 +70,9 @@ func TestPreparePool_PrepareExists(t *testing.T) {
 
 func TestPreparePool_IsPrepareValid(t *testing.T) {
 	preparePool := NewPreparePool()
-	blockHash := "blockHash"
-	privateKey, publicKey := chainutil.GenKeypair("secret")
-	privateKeyStr := chainutil.Key2Str(privateKey)
-	publicKeyStr := chainutil.Key2Str(publicKey)
-	signature := chainutil.Sign(privateKeyStr, blockHash)
-	prepare := NewPrepare(blockHash, publicKeyStr, signature)
+	wallet := NewWallet("secret")
+	block := Genesis()
+	prepare := NewPrepare(*wallet, block)
 	if !preparePool.IsPrepareValid(*prepare) {
 		t.Error("IsPrepareValid failed")
 	}
