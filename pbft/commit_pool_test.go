@@ -69,12 +69,12 @@ func TestCommitPool_CommitExists(t *testing.T) {
 }
 
 func TestCommitPool_IsCommitValid(t *testing.T) {
-	commpool := NewCommitPool()
+	commitPool := NewCommitPool()
 	wallet := NewWallet("secret")
 	block := Genesis()
 	prepare := NewPrepare(*wallet, block)
 	commit := NewCommit(*wallet, *prepare)
-	if !commpool.IsCommitValid(*commit) {
+	if !commitPool.IsCommitValid(*commit) {
 		t.Error("IsCommitValid fail")
 	}
 }
