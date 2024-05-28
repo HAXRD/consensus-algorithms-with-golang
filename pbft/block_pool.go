@@ -1,8 +1,8 @@
 package pbft
 
 import (
+	"encoding/hex"
 	"fmt"
-	"math"
 )
 
 /**
@@ -36,8 +36,7 @@ func (bp *BlockPool) BlockExists(block Block) bool {
 
 func (bp *BlockPool) AddBlock2Pool(block Block) {
 	bp.list = append(bp.list, block)
-	printLen := int(math.Min(15, float64(len(block.hash[:]))))
-	fmt.Printf("Added block %s to pool\n", block.hash[:printLen])
+	fmt.Printf("Added block %s to pool\n", hex.EncodeToString([]byte(block.hash))[:5])
 }
 
 func (bp *BlockPool) GetBlock(hash string) *Block {
