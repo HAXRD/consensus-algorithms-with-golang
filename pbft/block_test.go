@@ -93,7 +93,9 @@ func TestCreateBlock(t *testing.T) {
 		data,
 		proposer,
 		signature,
-		lastBlock.sequenceNum + 1}
+		lastBlock.sequenceNum + 1,
+		make([]Prepare, 0),
+		make([]Commit, 0)}
 
 	if expectedBlock.timestamp != actualBlock.timestamp {
 		t.Errorf("CreateBlock failed\nexpected:%v\nactual:%v\n", expectedBlock.timestamp, actualBlock.timestamp)

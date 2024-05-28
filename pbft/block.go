@@ -19,13 +19,15 @@ The block has the following properties:
 */
 
 type Block struct {
-	timestamp   string        `json:"timestamp"`
-	lastHash    string        `json:"lastHash"`
-	hash        string        `json:"hash"`
-	data        []Transaction `json:"data"`
-	proposer    string        `json:"proposer"`
-	signature   string        `json:"signature"`
-	sequenceNum uint64        `json:"sequenceNum"`
+	timestamp       string        `json:"timestamp"`
+	lastHash        string        `json:"lastHash"`
+	hash            string        `json:"hash"`
+	data            []Transaction `json:"data"`
+	proposer        string        `json:"proposer"`
+	signature       string        `json:"signature"`
+	sequenceNum     uint64        `json:"sequenceNum"`
+	prepareMessages []Prepare     `json:"prepareMessages"`
+	commitMessages  []Commit      `json:"commitMessages"`
 }
 
 // NewBlock creates a new block with given data
@@ -44,7 +46,9 @@ func NewBlock(
 		data,
 		proposer,
 		signature,
-		sequenceNum}
+		sequenceNum,
+		make([]Prepare, 0),
+		make([]Commit, 0)}
 }
 
 // PrintBlock prints the given block
@@ -76,7 +80,9 @@ func Genesis() Block {
 		[]Transaction{},
 		"====",
 		"SIGN",
-		0}
+		0,
+		nil,
+		nil}
 }
 
 // HashBlock hashes the given block info with timestamp, lastHash and data
@@ -88,7 +94,7 @@ func HashBlock(timestamp string, lastHash string, data []Transaction) string {
 
 // SignBlockHash signs the block hash and returns the signature
 func SignBlockHash(hash string, wallet Wallet) string {
-	return chainutil.Sign(chainutil.Key2Str(wallet.privateKey), hash)
+	return wallet.Sign(hash)
 }
 
 // CreateBlock creates block with lastBlock, data and wallet
@@ -104,7 +110,9 @@ func CreateBlock(lastBlock Block, data []Transaction, wallet Wallet) *Block {
 		data,
 		proposer,
 		signature,
-		lastBlock.sequenceNum + 1}
+		lastBlock.sequenceNum + 1,
+		make([]Prepare, 0),
+		make([]Commit, 0)}
 }
 
 // VerifyBlock verifies the block information, making sure the raw data matches
