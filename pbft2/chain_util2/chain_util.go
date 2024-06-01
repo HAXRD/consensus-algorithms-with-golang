@@ -18,6 +18,11 @@ func Hash(data string) string {
 	return string(hash[:])
 }
 
+// FormatHash formats a given hash for printing
+func FormatHash(hash string) string {
+	return hex.EncodeToString([]byte(hash))[:5]
+}
+
 // GenKeypair generates keypair with given secret
 func GenKeypair(secret string) (PrivateKey, PublicKey) {
 	// hash the secret

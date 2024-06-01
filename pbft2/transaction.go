@@ -9,7 +9,8 @@ import (
 
 /*
 *
-Message contains data and timestamp when the tx is created, featured with the following methods:
+Message contains data and timestamp when the tx is created,
+featured with the following methods:
 1. NewMessage
 */
 
@@ -33,8 +34,8 @@ type Transaction struct {
 }
 
 /**
-TransactionPool temporarily stores txs made by different wallets for each node
-It features with the following methods:
+TransactionPool temporarily stores pool made by different wallets for each node.
+It features the following methods:
 1. NewTxPool
 2. TxExists
 3. AddTx2Pool
@@ -43,7 +44,7 @@ It features with the following methods:
 */
 
 type TransactionPool struct {
-	txs []*Transaction
+	pool []Transaction
 }
 
 // NewMessage creates a message with given data and timestamp
@@ -87,19 +88,19 @@ func (tx *Transaction) VerifyTx() bool {
 	return true
 }
 
-// NewTxPool creates a tx pool that temporarily stores the txs from
+// NewTxPool creates a tx pool that temporarily stores the pool from
 // all available nodes. Txs in pool will be periodically removed
 // by matching tx's id.
 // TODO: make sure this removing logic works!
 func NewTxPool() *TransactionPool {
 	return &TransactionPool{
-		txs: make([]*Transaction, 0, 2*TX_THRESHOLD),
+		pool: make([]Transaction, 0, 2*TX_THRESHOLD),
 	}
 }
 
 // TxExists checks if a tx exists in the pool or not
 func (tp *TransactionPool) TxExists(tx Transaction) bool {
-	for _, _tx := range tp.txs {
+	for _, _tx := range tp.pool {
 		if _tx.Id == tx.Id {
 			return true
 		}
@@ -110,8 +111,9 @@ func (tp *TransactionPool) TxExists(tx Transaction) bool {
 // AddTx2Pool adds a given tx's address to the pool
 // returns true if it reaches
 func (tp *TransactionPool) AddTx2Pool(tx Transaction) bool {
-	tp.txs = append(tp.txs, &tx)
-	if len(tp.txs) >= TX_THRESHOLD {
+	tp.pool = append(tp.pool, tx)
+	log.Printf("Add tx [%s] to pool\n", chain_util2.FormatHash(tx.Hash))
+	if len(tp.pool) >= TX_THRESHOLD {
 		return true
 	}
 	return false
@@ -122,13 +124,13 @@ func (tp *TransactionPool) VerifyTx(tx Transaction) bool {
 	return tx.VerifyTx()
 }
 
-// CleanPool cleans all txs exist in the given block
-func (tp *TransactionPool) CleanPool(txs []*Transaction) {
-	newTxs := make([]*Transaction, 0, len(tp.txs))
+// CleanPool cleans all pool exist in the given block
+func (tp *TransactionPool) CleanPool(txs []Transaction) {
+	newTxs := make([]Transaction, 0, len(tp.pool))
 	for _, tx := range txs {
-		if !tp.TxExists(*tx) {
+		if !tp.TxExists(tx) {
 			newTxs = append(newTxs, tx)
 		}
 	}
-	tp.txs = newTxs
+	tp.pool = newTxs
 }

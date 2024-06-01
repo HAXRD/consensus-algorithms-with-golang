@@ -4,6 +4,7 @@ import (
 	"consensus-algorithms-with-golang/pbft2/chain_util2"
 	"crypto/ed25519"
 	"fmt"
+	"time"
 )
 
 /**
@@ -13,6 +14,7 @@ Wallet features the following methods:
 3. Sign
 4. Verify
 5. CreateTx
+6. CreateBlock
 */
 
 // set alias
@@ -52,6 +54,26 @@ func (w *Wallet) Sign(hash string) string {
 //}
 
 // CreateTx creates a tx with given data
-func (w *Wallet) CreateTx(data string) Transaction {
-	return *NewTx(*w, data)
+func (w *Wallet) CreateTx(data string) *Transaction {
+	return NewTx(*w, data)
+}
+
+// CreateBlock creates a block with lastBlock and provided data
+func (w *Wallet) CreateBlock(lastBlock Block, data []Transaction) *Block {
+	timestamp := time.Now().String()
+	lastHash := lastBlock.Hash
+	nonce := lastBlock.Nonce + 1
+	// hash block with timestamp, lastBlock's hash, marshalled data and current nonce
+	hash := HashBlock(timestamp, lastHash, data, nonce)
+	// sign the hash
+	signature := w.Sign(hash)
+	return &Block{
+		Timestamp: timestamp,
+		LastHash:  lastHash,
+		Data:      data,
+		Hash:      hash,
+		Proposer:  w.publicKey,
+		Signature: signature,
+		Nonce:     nonce,
+	}
 }
