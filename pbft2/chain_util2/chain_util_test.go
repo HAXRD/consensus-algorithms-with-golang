@@ -1,4 +1,4 @@
-package pbft2
+package chain_util2
 
 import (
 	"bytes"
