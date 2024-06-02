@@ -35,6 +35,7 @@ It features the following methods:
 2. BlockExists
 3. AddBlock2Pool
 4. GetBlock
+5. CleanBlock
 */
 
 type BlockPool struct {
@@ -103,13 +104,13 @@ func NewBlockPool() *BlockPool {
 
 // BlockExists checks if a given block exists in the pool
 // by comparing its hash
-func (bp *BlockPool) BlockExists(block Block) bool {
-	for _, b := range bp.pool {
-		if b.Hash == block.Hash {
-			return true
+func (bp *BlockPool) BlockExists(hash string) (bool, int) {
+	for idx, b := range bp.pool {
+		if b.Hash == hash {
+			return true, idx
 		}
 	}
-	return false
+	return false, -1
 }
 
 // AddBlock2Pool adds a block to the block pool
@@ -126,4 +127,15 @@ func (bp *BlockPool) GetBlock(hash string) *Block {
 		}
 	}
 	return nil
+}
+
+// CleanPool removes the block from the pool by matching block hash
+func (bp *BlockPool) CleanPool(hash string) bool {
+	exists, idx := bp.BlockExists(hash)
+	if exists {
+		bp.pool = append(bp.pool[:idx], bp.pool[idx+1:]...)
+		return true
+	} else {
+		return false
+	}
 }

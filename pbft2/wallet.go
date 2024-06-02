@@ -77,3 +77,13 @@ func (w *Wallet) CreateBlock(lastBlock Block, data []Transaction) *Block {
 		Nonce:     nonce,
 	}
 }
+
+// CreateMsg creates a message for PBFT phase transition
+func (w *Wallet) CreateMsg(msgType MsgType, blockHash string) *Message {
+	return &Message{
+		MsgType:   msgType,
+		BlockHash: blockHash,
+		PublicKey: w.publicKey,
+		Signature: w.Sign(blockHash),
+	}
+}

@@ -9,12 +9,12 @@ import (
 
 /*
 *
-Message contains data and timestamp when the tx is created,
+Event contains data and timestamp when the tx is created,
 featured with the following methods:
-1. NewMessage
+1. NewEvent
 */
 
-type Message struct {
+type Event struct {
 	Data      string `json:"data"`
 	Timestamp string `json:"timestamp"`
 }
@@ -28,7 +28,7 @@ Transaction is created by a wallet, featured with the following methods:
 type Transaction struct {
 	Id        string `json:"id"`
 	From      string `json:"from"`
-	Message   string `json:"message"`
+	Event     string `json:"event"`
 	Hash      string `json:"hash"`
 	Signature string `json:"signature"`
 }
@@ -47,9 +47,9 @@ type TransactionPool struct {
 	pool []Transaction
 }
 
-// NewMessage creates a message with given data and timestamp
-func NewMessage(data string) *Message {
-	return &Message{
+// NewEvent creates a message with given data and timestamp
+func NewEvent(data string) *Event {
+	return &Event{
 		Data:      data,
 		Timestamp: time.Now().String(),
 	}
@@ -57,18 +57,18 @@ func NewMessage(data string) *Message {
 
 // NewTx create a tx with a wallet
 func NewTx(w Wallet, data string) *Transaction {
-	msg := NewMessage(data)
-	msgStr, err := json.Marshal(msg)
+	event := NewEvent(data)
+	eventStr, err := json.Marshal(event)
 	if err != nil {
-		log.Fatalf("Tx's msg json marshal err, %v\n", err)
+		log.Fatalf("Tx's event json marshal err, %v\n", err)
 	}
-	hash := chain_util2.Hash(string(msgStr))
+	hash := chain_util2.Hash(string(eventStr))
 	signature := w.Sign(hash)
 
 	return &Transaction{
 		Id:        chain_util2.Id(),
 		From:      chain_util2.Key2Str(w.publicKey),
-		Message:   string(msgStr),
+		Event:     string(eventStr),
 		Hash:      hash,
 		Signature: signature,
 	}
@@ -77,7 +77,7 @@ func NewTx(w Wallet, data string) *Transaction {
 // VerifyTx verifies a given tx with tx's msg->hash and hash->signature
 func (tx *Transaction) VerifyTx() bool {
 	// verify msg->hash
-	if tx.Hash != chain_util2.Hash(tx.Message) {
+	if tx.Hash != chain_util2.Hash(tx.Event) {
 		return false
 	}
 	// verify hash->signature
@@ -124,13 +124,20 @@ func (tp *TransactionPool) VerifyTx(tx Transaction) bool {
 	return tx.VerifyTx()
 }
 
-// CleanPool cleans all pool exist in the given block
-func (tp *TransactionPool) CleanPool(txs []Transaction) {
+// CleanPool cleans all pool exist in the given block.
+// Returns true if any txs have been removed;
+// Returns false otherwise.
+func (tp *TransactionPool) CleanPool(txs []Transaction) bool {
 	newTxs := make([]Transaction, 0, len(tp.pool))
 	for _, tx := range txs {
 		if !tp.TxExists(tx) {
 			newTxs = append(newTxs, tx)
 		}
 	}
-	tp.pool = newTxs
+	if len(newTxs) == len(tp.pool) {
+		return false
+	} else {
+		tp.pool = newTxs
+		return true
+	}
 }
