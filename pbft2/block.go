@@ -19,13 +19,16 @@ A Block stores the pool collected from tx pool, featured with the following meth
 */
 
 type Block struct {
-	Timestamp string        `json:"timestamp"`
-	LastHash  string        `json:"lastHash"`
-	Data      []Transaction `json:"data"`
-	Hash      string        `json:"hash"`
-	Proposer  PublicKey     `json:"proposer"`
-	Signature string        `json:"signature"`
-	Nonce     uint64        `json:"nonce"`
+	Timestamp      string        `json:"timestamp"`
+	LastHash       string        `json:"lastHash"`
+	Data           []Transaction `json:"data"`
+	Hash           string        `json:"hash"`
+	Proposer       PublicKey     `json:"proposer"`
+	Signature      string        `json:"signature"`
+	Nonce          uint64        `json:"nonce"`
+	PrePrepareMsgs []Message     `json:"prePrepareMsgs"`
+	PrepareMsgs    []Message     `json:"prepareMsgs"`
+	CommitMsgs     []Message     `json:"commitMsgs"`
 }
 
 /**
@@ -63,13 +66,16 @@ func PrintBlock(block Block) {
 // Genesis creates the first block of the chain
 func Genesis() *Block {
 	return &Block{
-		Timestamp: time.Now().String(),
-		LastHash:  "-",
-		Data:      nil,
-		Hash:      "-",
-		Proposer:  nil,
-		Signature: "-",
-		Nonce:     0,
+		Timestamp:      time.Now().String(),
+		LastHash:       "-",
+		Data:           nil,
+		Hash:           "-",
+		Proposer:       nil,
+		Signature:      "-",
+		Nonce:          0,
+		PrePrepareMsgs: nil,
+		PrepareMsgs:    nil,
+		CommitMsgs:     nil,
 	}
 }
 
@@ -119,11 +125,12 @@ func (bp *BlockPool) AddBlock2Pool(block Block) {
 	log.Printf("Added block [%s] to pool\n", chain_util2.FormatHash(block.Hash))
 }
 
-// GetBlock get the block from the pool with given hash
+// GetBlock get a copy of the block from the pool with given hash
 func (bp *BlockPool) GetBlock(hash string) *Block {
 	for _, b := range bp.pool {
 		if b.Hash == hash {
-			return &b
+			blockCopy := b
+			return &blockCopy
 		}
 	}
 	return nil

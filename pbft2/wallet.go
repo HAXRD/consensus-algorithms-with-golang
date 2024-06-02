@@ -68,13 +68,16 @@ func (w *Wallet) CreateBlock(lastBlock Block, data []Transaction) *Block {
 	// sign the hash
 	signature := w.Sign(hash)
 	return &Block{
-		Timestamp: timestamp,
-		LastHash:  lastHash,
-		Data:      data,
-		Hash:      hash,
-		Proposer:  w.publicKey,
-		Signature: signature,
-		Nonce:     nonce,
+		Timestamp:      timestamp,
+		LastHash:       lastHash,
+		Data:           data,
+		Hash:           hash,
+		Proposer:       w.publicKey,
+		Signature:      signature,
+		Nonce:          nonce,
+		PrePrepareMsgs: nil,
+		PrepareMsgs:    nil,
+		CommitMsgs:     nil,
 	}
 }
 
