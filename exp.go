@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func main() {
+func main2() {
 	HOST := flag.String("HOST", "localhost", "Host to bind to")
 	WSPORT := flag.Int("WSPORT", 8080, "Port to bind to")
 	PEERS := flag.String("PEERS", "", "Comma separated list of PEERS")

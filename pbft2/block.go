@@ -11,24 +11,27 @@ import (
 
 /**
 A Block stores the pool collected from tx pool, featured with the following methods:
-1. PrintBlock
-2. Genesis
-3. HashBlock
-4. VerifyBlock
-5. VerifyBlockProposer
+1. NewBlock
+2. PrintBlock
+3. Genesis
+4. HashBlock
+5. VerifyBlock
+6. VerifyBlockProposer
 */
 
 type Block struct {
-	Timestamp      string        `json:"timestamp"`
-	LastHash       string        `json:"lastHash"`
-	Data           []Transaction `json:"data"`
-	Hash           string        `json:"hash"`
-	Proposer       PublicKey     `json:"proposer"`
-	Signature      string        `json:"signature"`
-	Nonce          uint64        `json:"nonce"`
-	PrePrepareMsgs []Message     `json:"prePrepareMsgs"`
-	PrepareMsgs    []Message     `json:"prepareMsgs"`
-	CommitMsgs     []Message     `json:"commitMsgs"`
+	Timestamp   string        `json:"timestamp"`
+	LastHash    string        `json:"lastHash"`
+	Data        []Transaction `json:"data"`
+	Hash        string        `json:"hash"`
+	Proposer    PublicKey     `json:"proposer"`
+	Signature   string        `json:"signature"`
+	Nonce       uint64        `json:"nonce"`
+	BlockMsgs   []Block       `json:"blockMsgs"`
+	PrepareMsgs []Message     `json:"prepareMsgs"`
+	CommitMsgs  []Message     `json:"commitMsgs"`
+	RCMsgs      []Message     `json:"rcMsgs"`
+	MsgType     string        `json:"msgType"`
 }
 
 /**
@@ -43,6 +46,37 @@ It features the following methods:
 
 type BlockPool struct {
 	pool []Block
+}
+
+// NewBlock creates a new block
+func NewBlock(
+	timestamp string,
+	lastHash string,
+	data []Transaction,
+	hash string,
+	proposer PublicKey,
+	signature string,
+	nonce uint64,
+	blockMsgs []Block,
+	prepareMsgs []Message,
+	commitMsgs []Message,
+	rcMsgs []Message,
+) *Block {
+	block := &Block{
+		Timestamp:   timestamp,
+		LastHash:    lastHash,
+		Data:        data,
+		Hash:        hash,
+		Proposer:    proposer,
+		Signature:   signature,
+		Nonce:       nonce,
+		BlockMsgs:   blockMsgs,
+		PrepareMsgs: prepareMsgs,
+		CommitMsgs:  commitMsgs,
+		RCMsgs:      rcMsgs,
+		MsgType:     MsgPrePrepare,
+	}
+	return block
 }
 
 // PrintBlock prints the block info
@@ -65,18 +99,19 @@ func PrintBlock(block Block) {
 
 // Genesis creates the first block of the chain
 func Genesis() *Block {
-	return &Block{
-		Timestamp:      time.Now().String(),
-		LastHash:       "-",
-		Data:           nil,
-		Hash:           "-",
-		Proposer:       nil,
-		Signature:      "-",
-		Nonce:          0,
-		PrePrepareMsgs: nil,
-		PrepareMsgs:    nil,
-		CommitMsgs:     nil,
-	}
+	return NewBlock(
+		time.Now().String(),
+		"-",
+		nil,
+		"-",
+		nil,
+		"-",
+		0,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
 }
 
 // HashBlock hashes the block with timestamp, lastBlock's hash, marshalled data and current nonce

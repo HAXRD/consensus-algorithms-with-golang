@@ -31,6 +31,7 @@ type Transaction struct {
 	Event     string `json:"event"`
 	Hash      string `json:"hash"`
 	Signature string `json:"signature"`
+	MsgType   string `json:"msgType"`
 }
 
 /**
@@ -71,11 +72,16 @@ func NewTx(w Wallet, data string) *Transaction {
 		Event:     string(eventStr),
 		Hash:      hash,
 		Signature: signature,
+		MsgType:   MsgTx,
 	}
 }
 
 // VerifyTx verifies a given tx with tx's msg->hash and hash->signature
 func (tx *Transaction) VerifyTx() bool {
+	// verify msgType
+	if tx.MsgType != MsgTx {
+		return false
+	}
 	// verify msg->hash
 	if tx.Hash != chain_util2.Hash(tx.Event) {
 		return false
@@ -112,7 +118,7 @@ func (tp *TransactionPool) TxExists(tx Transaction) bool {
 // returns true if it reaches
 func (tp *TransactionPool) AddTx2Pool(tx Transaction) bool {
 	tp.pool = append(tp.pool, tx)
-	log.Printf("Add tx [%s] to pool\n", chain_util2.FormatHash(tx.Hash))
+	log.Printf("Tx [%s] added to tx pool\n", chain_util2.FormatHash(tx.Hash))
 	if len(tp.pool) >= TX_THRESHOLD {
 		return true
 	}

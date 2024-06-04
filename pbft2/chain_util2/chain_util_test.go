@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
+	"strconv"
 	"testing"
 )
 
@@ -17,6 +18,26 @@ func TestHash(t *testing.T) {
 
 	if expected != actual {
 		t.Errorf("Hash failed, expected %s, actual %s\n", expected, actual)
+	}
+}
+
+func TestFormatHash(t *testing.T) {
+	data := "test data"
+	hash := Hash(data)
+	expected := hex.EncodeToString([]byte(hash))[:5]
+	actual := FormatHash(hash)
+	if expected != actual {
+		t.Errorf("FormatHash failed, expected %s, actual %s\n", expected, actual)
+	}
+}
+
+func TestFormatUrl(t *testing.T) {
+	host := "localhost"
+	var port uint64 = 8080
+	expected := host + ":" + strconv.FormatUint(port, 10)
+	actual := FormatUrl(host, port)
+	if expected != actual {
+		t.Errorf("FormatWsUrl failed, expected %s, actual %s\n", expected, actual)
 	}
 }
 

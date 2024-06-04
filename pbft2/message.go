@@ -12,30 +12,21 @@ PBFT uses 3 phases to ensure consensus, pre-prepare, prepare, and commit.
   is final and will not be altered.
 
 Workflow: '*' tagged are included in this file
- tx      ==(n-to-1)==> block:   	 tx collection, use `Block`
-*block   ==(1-to-1)==> prepare: 	 pre-prepare, use `Message` with `type` = "MESSAGE_PRE_PREPARE"
-*prepare ==(1-to-1)==> commit:  	 prepare, use `Message` with `type` = "MESSAGE_PREPARE"
-*commit  ==(1-to-1)==> round_change: commit, use `Commit` with `type` = "MESSAGE_COMMIT"
+ tx      ==(n-to-1)==> block:   	 "TX"
+*block   ==(1-to-1)==> prepare: 	 "PRE-PREPARE"
+*prepare ==(1-to-1)==> commit:  	 "PREPARE"
+*commit  ==(1-to-1)==> round_change: "COMMIT"
+ round_change =======> new_round:    "RC"
 */
 
-// Define Enums
-type MsgType int
-
-func (mt MsgType) String() string {
-	return MsgName[mt]
-}
-
+// Define MsgTypes
 const (
-	MsgPrePrepare = iota
-	MsgPrepare
-	MsgCommit
+	MsgTx         = "Tx"
+	MsgPrePrepare = "PRE-PREPARE"
+	MsgPrepare    = "PREPARE"
+	MsgCommit     = "COMMIT"
+	MsgRC         = "RC"
 )
-
-var MsgName = map[MsgType]string{
-	MsgPrePrepare: "PRE-PREPARE",
-	MsgPrepare:    "PREPARE",
-	MsgCommit:     "COMMIT",
-}
 
 /*
 *
@@ -44,14 +35,14 @@ Message stores passed-in blockHash, publicKey and signature.
 */
 
 type Message struct {
-	MsgType   MsgType   `json:"msgType"`
+	MsgType   string    `json:"msgType"`
 	BlockHash string    `json:"blockHash"`
 	PublicKey PublicKey `json:"publicKey"`
 	Signature string    `json:"signature"`
 }
 
 // NewMsg creates a new message that is used for phase transition in PBFT.
-func NewMsg(msgType MsgType, blockHash string, publicKey PublicKey, signature string) *Message {
+func NewMsg(msgType string, blockHash string, publicKey PublicKey, signature string) *Message {
 	return &Message{
 		MsgType:   msgType,
 		BlockHash: blockHash,

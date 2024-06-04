@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"github.com/google/uuid"
 	"log"
+	"strconv"
 )
 
 // set alias
@@ -21,6 +22,11 @@ func Hash(data string) string {
 // FormatHash formats a given hash for printing
 func FormatHash(hash string) string {
 	return hex.EncodeToString([]byte(hash))[:5]
+}
+
+// FormatUrl formats url with given host and port
+func FormatUrl(host string, port uint64) string {
+	return host + ":" + strconv.FormatUint(port, 10)
 }
 
 // GenKeypair generates keypair with given secret

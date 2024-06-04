@@ -4,6 +4,7 @@ import (
 	"consensus-algorithms-with-golang/pbft2/chain_util2"
 	"crypto/ed25519"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -67,26 +68,26 @@ func (w *Wallet) CreateBlock(lastBlock Block, data []Transaction) *Block {
 	hash := HashBlock(timestamp, lastHash, data, nonce)
 	// sign the hash
 	signature := w.Sign(hash)
-	return &Block{
-		Timestamp:      timestamp,
-		LastHash:       lastHash,
-		Data:           data,
-		Hash:           hash,
-		Proposer:       w.publicKey,
-		Signature:      signature,
-		Nonce:          nonce,
-		PrePrepareMsgs: nil,
-		PrepareMsgs:    nil,
-		CommitMsgs:     nil,
-	}
+	block := NewBlock(
+		timestamp,
+		lastHash,
+		data,
+		hash,
+		w.publicKey,
+		signature,
+		nonce,
+		nil, nil, nil, nil,
+	)
+	log.Printf("Created block [%s]\n", chain_util2.FormatHash(block.Hash))
+	return block
 }
 
 // CreateMsg creates a message for PBFT phase transition
-func (w *Wallet) CreateMsg(msgType MsgType, blockHash string) *Message {
-	return &Message{
-		MsgType:   msgType,
-		BlockHash: blockHash,
-		PublicKey: w.publicKey,
-		Signature: w.Sign(blockHash),
-	}
+func (w *Wallet) CreateMsg(msgType string, blockHash string) *Message {
+	return NewMsg(
+		msgType,
+		blockHash,
+		w.publicKey,
+		w.Sign(blockHash),
+	)
 }
