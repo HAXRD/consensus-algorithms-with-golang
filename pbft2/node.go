@@ -2,10 +2,12 @@ package pbft2
 
 import (
 	"consensus-algorithms-with-golang/pbft2/chain_util2"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 var upgrader = websocket.Upgrader{
@@ -53,6 +55,7 @@ type Node struct {
 	WsPort      uint64
 	Port        uint64
 	Sockets     map[string]*websocket.Conn
+	Relay       *websocket.Conn
 	Validators  Validators
 	Blockchain  Blockchain
 	Wallet      Wallet
@@ -71,6 +74,7 @@ func NewNode(host string, wsPort uint64, vs Validators, bc Blockchain, w Wallet,
 		WsPort:      wsPort,
 		Port:        wsPort + 10000,
 		Sockets:     make(map[string]*websocket.Conn),
+		Relay:       nil,
 		Validators:  vs,
 		Blockchain:  bc,
 		Wallet:      w,
@@ -82,18 +86,80 @@ func NewNode(host string, wsPort uint64, vs Validators, bc Blockchain, w Wallet,
 	}
 }
 
+// launchHttpServer launches the Http endpoint server
+func (node *Node) launchHttpServer() {
+	httpUrl := chain_util2.FormatUrl(node.Host, node.Port)
+	log.Printf("Http server listening on [%s]...\n", httpUrl)
+	err := http.ListenAndServe(httpUrl, nil)
+	if err != nil {
+		log.Fatalf("Http server listen failed, %s\n", err)
+	}
+}
+
+// launchWsServer launches the websocket server
+func (node *Node) launchWsServer() {
+	wsServerUrl := chain_util2.FormatUrl(node.Host, node.WsPort)
+	log.Printf("Websocket server listening on [%s]...\n", wsServerUrl)
+	err := http.ListenAndServe(wsServerUrl, nil)
+	if err != nil {
+		log.Fatalf("Websocket server listen failed, %s\n", err)
+	}
+}
+
+// launchWsClient launches the websocket client to connection to
+// current node's ws server
+// The message source of WsClient(Relay) could be
+//
+//	CASE 1. Direct `WriteMessage()` calls from any http endpoints requests
+//	CASE 2. Direct `WriteMessage()` calls from peer ws socket connections
+//	   after `peer.ReadMessage()` then calling `Relay.WriteMessage()`
+//	CASE 3. Relaying by `Relay.ReadMessage()` then `Relay.WriteMessage()`
+func (node *Node) launchWsClient() {
+	// keep trying dialing to ws server util ws server is online
+	var wsClientConn *websocket.Conn
+	var err error
+	for {
+		wsServerUrl := fmt.Sprintf("ws://%s/ws", chain_util2.FormatUrl(node.Host, node.WsPort))
+		log.Printf("Dialing itself [%s]...\n", wsServerUrl)
+		wsClientConn, _, err = websocket.DefaultDialer.Dial(wsServerUrl, nil)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		log.Printf("Connected to itself [%s]...\n", wsServerUrl)
+
+		node.Relay = wsClientConn
+		break
+	}
+
+	// relaying any incoming messages to ws server
+	// (this is CASE 3)
+	var mt int
+	var relayMsg []byte
+	for {
+		mt, relayMsg, err = node.Relay.ReadMessage()
+		if err != nil {
+			log.Printf("Relay error reading msg, [%s], skipping...\n", err)
+		}
+		err = node.Relay.WriteMessage(mt, relayMsg)
+		if err != nil {
+			log.Printf("Relay error writing msg, [%s], skipping...\n", err)
+		}
+	}
+}
+
 // Listen launches the http endpoints, websocket server, websocket client
 // and then connects to peers.
 func (node *Node) Listen() {
 	// http endpoints
 	http.HandleFunc("/queryNodeInfo", node.queryNodeInfoHandler)
-	go func() {
-		url := chain_util2.FormatUrl(node.Host, node.Port)
-		log.Printf("Http server listening on [%s]...\n", url)
-		err := http.ListenAndServe(url, nil)
-		if err != nil {
-			log.Fatalf("Http server listen failed, %s\n", err)
-		}
-	}()
+	http.HandleFunc("/makeTestCall", node.makeTestCallHandler)
+	go node.launchHttpServer()
 
+	// websocket server
+	http.HandleFunc("/ws", node.wsServerHandler)
+	go node.launchWsServer()
+
+	// websocket client
+	go node.launchWsClient()
 }
