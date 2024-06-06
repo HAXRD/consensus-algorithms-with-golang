@@ -148,12 +148,57 @@ func (node *Node) launchWsClient() {
 	}
 }
 
+func (node *Node) launchPeer(peerUrl string) {
+	var mt int
+	var msg []byte
+	var err error
+	// wait for Relay up-online
+	for {
+		time.Sleep(1 * time.Second)
+		if node.Relay != nil {
+			break
+		}
+	}
+	// relaying any received message to current node's WsClient(Relay)
+	for {
+		mt, msg, err = node.Sockets[peerUrl].ReadMessage()
+		if err != nil {
+			log.Printf("Error reading from peer [%s], %v\n", peerUrl, err)
+		}
+		err = node.Relay.WriteMessage(mt, msg)
+		if err != nil {
+			log.Printf("Error relaying to WsClient/Relay, %v\n", err)
+		}
+	}
+}
+
+// connectPeers connects current node's peers
+func (node *Node) connectPeers(peers []string) {
+	for _, peer := range peers {
+		peerUrl := fmt.Sprintf("ws://%s/ws", peer)
+		log.Printf("Dialing peer [%s]...\n", peerUrl)
+		peerConn, _, err := websocket.DefaultDialer.Dial(peerUrl, nil)
+		if err != nil {
+			log.Printf("Error connecting to peer [%s], skipping...\n", err)
+			continue
+		}
+		log.Printf("Connected to peer [%s]...\n", peerUrl)
+
+		mutex.Lock()
+		node.Sockets[peerUrl] = peerConn
+		mutex.Unlock()
+
+		// launchPeer
+		go node.launchPeer(peerUrl)
+	}
+}
+
 // Listen launches the http endpoints, websocket server, websocket client
 // and then connects to peers.
-func (node *Node) Listen() {
+func (node *Node) Listen(peers []string) {
 	// http endpoints
 	http.HandleFunc("/queryNodeInfo", node.queryNodeInfoHandler)
-	http.HandleFunc("/makeTestCall", node.makeTestCallHandler)
+	http.HandleFunc("/makeTx", node.makeTxHandler)
 	go node.launchHttpServer()
 
 	// websocket server
@@ -162,4 +207,7 @@ func (node *Node) Listen() {
 
 	// websocket client
 	go node.launchWsClient()
+
+	// peers
+	node.connectPeers(peers)
 }

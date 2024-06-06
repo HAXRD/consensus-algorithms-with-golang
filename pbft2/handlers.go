@@ -2,6 +2,7 @@ package pbft2
 
 import (
 	"consensus-algorithms-with-golang/pbft2/chain_util2"
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
@@ -125,7 +126,9 @@ func (node *Node) makeTestCallHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	msg := "Hello!"
 
+	// wait for WsClient(Relay) up-online
 	for {
+		time.Sleep(1 * time.Second)
 		if node.Relay != nil {
 			break
 		}
@@ -134,6 +137,31 @@ func (node *Node) makeTestCallHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(msg))
 	// Write to WsClient(Relay)
 	err := node.Relay.WriteMessage(websocket.TextMessage, []byte(msg))
+	if err != nil {
+		log.Printf("Write message failed, [%s]\n", err)
+	}
+}
+
+// makeTxHandler makes a tx on current node
+func (node *Node) makeTxHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	tx := node.Wallet.CreateTx(time.Now().String() + " " + "this is a test message")
+	msg, err := json.Marshal(tx)
+	if err != nil {
+		log.Printf("Marshal tx failed, [%s]\n", err)
+		return
+	}
+
+	// write message
+	for {
+		if node.Relay != nil {
+			break
+		}
+	}
+	// Write to web page
+	w.Write([]byte(msg))
+	// Write to WsClient(Relay)
+	err = node.Relay.WriteMessage(websocket.TextMessage, []byte(msg))
 	if err != nil {
 		log.Printf("Write message failed, [%s]\n", err)
 	}
