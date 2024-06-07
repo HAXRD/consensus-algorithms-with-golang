@@ -5,7 +5,6 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
-	"strconv"
 	"testing"
 )
 
@@ -13,28 +12,41 @@ func TestHash(t *testing.T) {
 	data := "test data"
 
 	hash := sha256.Sum256([]byte(data))
-	expected := string(hash[:])
+	expected := hash[:]
 	actual := Hash(data)
 
-	if expected != actual {
+	if BytesToHex(expected) != BytesToHex(actual) {
 		t.Errorf("Hash failed, expected %s, actual %s\n", expected, actual)
 	}
 }
 
-func TestFormatHash(t *testing.T) {
+func TestBytesToHex(t *testing.T) {
 	data := "test data"
 	hash := Hash(data)
-	expected := hex.EncodeToString([]byte(hash))[:5]
-	actual := FormatHash(hash)
+	expected := hex.EncodeToString(hash)
+	actual := BytesToHex(hash)
 	if expected != actual {
-		t.Errorf("FormatHash failed, expected %s, actual %s\n", expected, actual)
+		t.Errorf("BytesToHex  failed, expected %s, actual %s\n", expected, actual)
+	}
+}
+
+func TestHexToBytes(t *testing.T) {
+	data := "test data"
+	hash := Hash(data)
+	hashHex := BytesToHex(hash)
+	expected, err := hex.DecodeString(hashHex)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(expected, hash) {
+		t.Errorf("HexToBytes failed, expected %s, actual %s\n", expected, hash)
 	}
 }
 
 func TestFormatUrl(t *testing.T) {
 	host := "localhost"
 	var port uint64 = 8080
-	expected := host + ":" + strconv.FormatUint(port, 10)
+	expected := "localhost:8080"
 	actual := FormatUrl(host, port)
 	if expected != actual {
 		t.Errorf("FormatWsUrl failed, expected %s, actual %s\n", expected, actual)
@@ -45,8 +57,7 @@ func TestGenKeypair(t *testing.T) {
 	secret := "test secret"
 
 	hash := Hash(secret)
-	seed := []byte(hash)
-	expectedPrivateKey := ed25519.NewKeyFromSeed(seed)
+	expectedPrivateKey := ed25519.NewKeyFromSeed(hash)
 	expectedPublicKey := expectedPrivateKey.Public().(PublicKey)
 
 	actualPrivateKey, actualPublicKey := GenKeypair(secret)
@@ -66,45 +77,15 @@ func TestId(t *testing.T) {
 	}
 }
 
-func TestKey2Str(t *testing.T) {
-	secret := "test secret"
-	privateKey, publicKey := GenKeypair(secret)
-	privateKeyStr := Key2Str(privateKey)
-	publicKeyStr := Key2Str(publicKey)
-	expectedPrivateKeyStr := hex.EncodeToString(privateKey)
-	expectedPublicKeyStr := hex.EncodeToString(publicKey)
-	if expectedPrivateKeyStr != privateKeyStr {
-		t.Errorf("Key2Str failed, expected %s, actual %s\n", expectedPrivateKeyStr, privateKeyStr)
-	}
-	if expectedPublicKeyStr != publicKeyStr {
-		t.Errorf("Key2Str failed, expected %s, actual %s\n", expectedPublicKeyStr, publicKeyStr)
-	}
-}
-
-func TestStr2Key(t *testing.T) {
-	secret := "test secret"
-	privateKey, publicKey := GenKeypair(secret)
-	privateKeyStr := Key2Str(privateKey)
-	publicKeyStr := Key2Str(publicKey)
-	actualPrivateKey := Str2Key(privateKeyStr)
-	actualPublicKey := Str2Key(publicKeyStr)
-	if !bytes.Equal(privateKey, actualPrivateKey) {
-		t.Errorf("Str2Key failed, expected %s, actual %s\n", privateKey, actualPrivateKey)
-	}
-	if !bytes.Equal(publicKey, actualPublicKey) {
-		t.Errorf("Str2Key failed, expected %s, actual %s\n", publicKey, actualPublicKey)
-	}
-}
-
 func TestSign(t *testing.T) {
 	secret := "test secret"
 	data := "test data"
 	hash := Hash(data)
 	privateKey, _ := GenKeypair(secret)
-	expected := string(ed25519.Sign(privateKey, []byte(hash)))
+	expected := ed25519.Sign(privateKey, hash)
 	actual := Sign(privateKey, hash)
 
-	if expected != actual {
+	if !bytes.Equal(expected, actual) {
 		t.Errorf("Sign failed, expected %s, actual %s\n", expected, actual)
 	}
 }
