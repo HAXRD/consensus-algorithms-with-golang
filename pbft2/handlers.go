@@ -77,7 +77,7 @@ func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 // broadcast broadcasts the given message to all sockets
 func (node *Node) broadcast(msg string) {
-	time.Sleep(5 * time.Second) // TODO: change this to random period of time
+	time.Sleep(3 * time.Second) // TODO: change this to random period of time
 	mutex.Lock()
 	defer mutex.Unlock()
 	for url, conn := range node.Sockets {
@@ -314,7 +314,9 @@ func (node *Node) makeTestCallHandler(w http.ResponseWriter, r *http.Request) {
 	// Write to web page
 	w.Write([]byte(msg))
 	// Write to WsClient(Relay)
+	mutex.Lock()
 	err := node.Relay.WriteMessage(websocket.TextMessage, []byte(msg))
+	mutex.Unlock()
 	if err != nil {
 		log.Printf("Write message failed, [%s]\n", err)
 	}
@@ -339,7 +341,9 @@ func (node *Node) makeTxHandler(w http.ResponseWriter, r *http.Request) {
 	// Write to web page
 	w.Write([]byte(msg))
 	// Write to WsClient(Relay)
+	mutex.Lock()
 	err = node.Relay.WriteMessage(websocket.TextMessage, []byte(msg))
+	mutex.Unlock()
 	if err != nil {
 		log.Printf("Write message failed, [%s]\n", err)
 	}

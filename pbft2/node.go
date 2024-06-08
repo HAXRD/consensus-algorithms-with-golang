@@ -141,7 +141,9 @@ func (node *Node) launchWsClient() {
 		if err != nil {
 			log.Printf("Relay error reading msg, [%s], skipping...\n", err)
 		}
+		mutex.Lock()
 		err = node.Relay.WriteMessage(mt, relayMsg)
+		mutex.Unlock()
 		if err != nil {
 			log.Printf("Relay error writing msg, [%s], skipping...\n", err)
 		}
@@ -165,7 +167,9 @@ func (node *Node) launchPeer(peerUrl string) {
 		if err != nil {
 			log.Printf("Error reading from peer [%s], %v\n", peerUrl, err)
 		}
+		mutex.Lock()
 		err = node.Relay.WriteMessage(mt, msg)
+		mutex.Unlock()
 		if err != nil {
 			log.Printf("Error relaying to WsClient/Relay, %v\n", err)
 		}
