@@ -13,16 +13,16 @@ import (
 // queryNodeInfoHandler queries the sockets of the node
 func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
-	str := "Node info:\n"
+	str := fmt.Sprintf("Node[%s] Info:\n", chain_util2.BytesToHex(node.Wallet.publicKey)[:5])
 	// validators
-	str += "[Validators]\n"
+	str += "\n[Validators]\n"
 	for i, pubKey := range node.Validators.list {
-		str += fmt.Sprintf("%d: %v\n", i, chain_util2.FormatHash(pubKey))
+		str += fmt.Sprintf("%d: %s\n", i, chain_util2.BytesToHex(pubKey)[:5])
 	}
 	// blockchain
-	str += "[Blockchain]\n"
+	str += "\n[Blockchain]\n"
 	for i, block := range node.Blockchain.chain {
-		str += fmt.Sprintf("[%v]", block.Hash)
+		str += fmt.Sprintf("[%s]", chain_util2.BytesToHex(block.Hash)[:5])
 		if i < len(node.Blockchain.chain)-1 {
 			str += "-->"
 		} else {
@@ -30,48 +30,48 @@ func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// available sockets
-	str += "[Sockets]\n"
+	str += "\n[Sockets]\n"
 	for key := range node.Sockets {
 		conn, ok := node.Sockets[key]
 		str += fmt.Sprintf("%s: %v\n", key, conn != nil && ok)
 	}
 	// TxPool
-	str += "[TxPool]\n"
+	str += "\n[TxPool]\n"
 	for i, tx := range node.TxPool.pool {
-		str += fmt.Sprintf("%d: %v by %v\n", i, chain_util2.FormatHash(tx.Hash), chain_util2.FormatHash(tx.From))
+		str += fmt.Sprintf("%d: %s by %s\n", i, chain_util2.BytesToHex(tx.Hash)[:5], chain_util2.BytesToHex(tx.From)[:5])
 	}
 	// BlockPool
-	str += "[BlockPool]\n"
+	str += "\n[BlockPool]\n"
 	for i, block := range node.BlockPool.pool {
-		str += fmt.Sprintf("%d: %v by %v\n", i, chain_util2.FormatHash(block.Hash), chain_util2.FormatHash(chain_util2.Key2Str(block.Proposer)))
+		str += fmt.Sprintf("%d: %s by %s\n", i, chain_util2.BytesToHex(block.Hash)[:5], chain_util2.BytesToHex(block.Proposer)[:5])
 	}
 	// PreparePool
-	str += "[PreparePool]\n"
+	str += "\n[PreparePool]\n"
 	for bh, msgs := range node.PreparePool.mapPool {
-		str += fmt.Sprintf("--> %v\n", chain_util2.FormatHash(bh))
+		str += fmt.Sprintf("--> %s\n", bh[:5])
 		for i, msg := range msgs {
-			str += fmt.Sprintf("%d: %v\n", i, chain_util2.FormatHash(chain_util2.Key2Str(msg.PublicKey)))
+			str += fmt.Sprintf("%d: %s\n", i, chain_util2.BytesToHex(msg.PublicKey)[:5])
 		}
 	}
 	// CommitPool
-	str += "[CommitPool]\n"
+	str += "\n[CommitPool]\n"
 	for bh, msgs := range node.CommitPool.mapPool {
-		str += fmt.Sprintf("--> %v\n", chain_util2.FormatHash(bh))
+		str += fmt.Sprintf("--> %s\n", bh[:5])
 		for i, msg := range msgs {
-			str += fmt.Sprintf("%d: %v\n", i, chain_util2.FormatHash(chain_util2.Key2Str(msg.PublicKey)))
+			str += fmt.Sprintf("%d: %s\n", i, chain_util2.BytesToHex(msg.PublicKey)[:5])
 		}
 	}
 	// RCPool
-	str += "[RCPool]\n"
+	str += "\n[RCPool]\n"
 	for bh, msgs := range node.RCPool.mapPool {
-		str += fmt.Sprintf("--> %v\n", chain_util2.FormatHash(bh))
+		str += fmt.Sprintf("--> %s\n", bh[:5])
 		for i, msg := range msgs {
-			str += fmt.Sprintf("%d: %v\n", i, chain_util2.FormatHash(chain_util2.Key2Str(msg.PublicKey)))
+			str += fmt.Sprintf("%d: %s\n", i, chain_util2.BytesToHex(msg.PublicKey)[:5])
 		}
 	}
 	_, err := w.Write([]byte(str))
 	if err != nil {
-		log.Printf("Write to HTTP client failed, [%s], skip this one!\n", err)
+		log.Printf("Write to HTTP client failed, [%v], skip this one!\n", err)
 	}
 }
 
@@ -94,7 +94,7 @@ func (node *Node) broadcast(msg string) {
 func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Upgrade to websocket failed, [%s]\n", err)
+		log.Printf("Upgrade to websocket failed, %v\n", err)
 		return
 	}
 	log.Printf("Remote address [%s] connected!\n", r.RemoteAddr)
@@ -108,15 +108,193 @@ func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 
 	// handle any requests by broadcasting it
 	// TODO[broadcast storm]: this should result in a broadcast storm, remove it later
+	//for {
+	//	_, msg, err := conn.ReadMessage()
+	//	if err != nil {
+	//		log.Printf("Read message failed, [%s]\n", err)
+	//		break
+	//	}
+	//	log.Printf("recv: [%s]\n", msg)
+	//
+	//	node.broadcast(string(msg))
+	//}
+
+	// handle requests infinitely
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("Read message failed, [%s]\n", err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("Unexpected close error: %v\n", err)
+			} else {
+				log.Printf("Websocket closed gracefully: %v\n", err)
+			}
+			log.Printf("Remote address [%s] disconnected!", r.RemoteAddr)
 			break
 		}
-		log.Printf("recv: [%s]\n", msg)
+		log.Printf("recv: %s\n", msg)
 
-		node.broadcast(string(msg))
+		// parse msg to different types and perform different ops
+		var data map[string]interface{}
+		if err := json.Unmarshal(msg, &data); err != nil {
+			log.Printf("Unmarshal msg failed, %s, skip this one!\n", err)
+			continue
+		}
+
+		if msgTypeRaw, ok := data["msgType"]; ok {
+			if msgType, ok2 := msgTypeRaw.(string); ok2 {
+
+				switch msgType {
+				case MsgTx:
+					var tx Transaction
+					if err := json.Unmarshal(msg, &tx); err != nil {
+						log.Printf("Unmarshal msg->tx failed, %s, skip this one!\n", err)
+						continue
+					}
+					// check if tx is valid
+					if !node.TxPool.TxExists(tx) &&
+						node.TxPool.VerifyTx(tx) &&
+						node.Validators.ValidatorExists(tx.From) {
+						// add tx to tx pool
+						thresholdReached := node.TxPool.AddTx2Pool(tx)
+						// broadcast
+						node.broadcast(string(msg))
+
+						if thresholdReached {
+							log.Println("THRESHOLD REACHED!")
+							if chain_util2.BytesToHex(node.Blockchain.GetProposer()) == chain_util2.BytesToHex(node.Wallet.publicKey) {
+								log.Println("PROPOSING A NEW BLOCK!")
+								block := node.Blockchain.CreateBlock(node.Wallet, node.TxPool.pool)
+								// TODO: broadcast
+								newMsg, err := json.Marshal(block)
+								if err != nil {
+									log.Printf("Marshal block failed, %s, msg won't be sent, skip this one!\n", err)
+									continue
+								}
+								node.broadcast(string(newMsg))
+							}
+						}
+					} else {
+						log.Printf("[MsgTx] NOT PASSING CONDITIONS!, %v, %v, %v\n",
+							!node.TxPool.TxExists(tx),
+							node.TxPool.VerifyTx(tx),
+							node.Validators.ValidatorExists(tx.From))
+						fmt.Println(tx.Event)
+						fmt.Println(tx.Event)
+						//log.Printf("[VerifyTx], %v, %v, %v, %v, %v\n",
+						//	tx.MsgType,
+						//	MsgTx,
+						//	tx.MsgType == MsgTx,
+						//	tx.Hash != chain_util2.Hash(tx.Event),
+						//	!chain_util2.Verify(chain_util2.Str2Key(tx.From), tx.Hash, tx.Signature))
+					}
+				case MsgPrePrepare:
+					var block Block
+					if err := json.Unmarshal(msg, &block); err != nil {
+						log.Printf("Unmarshal msg->block failed, %s, skip this one!\n", err)
+						continue
+					}
+					// check if block is valid
+					if exists, _ := node.BlockPool.BlockExists(block.Hash); !exists && node.Blockchain.VerifyBlock(block) {
+						// add block to block pool
+						node.BlockPool.AddBlock2Pool(block)
+						// broadcast
+						node.broadcast(string(msg))
+
+						// create prepareMsg and broadcast it
+						prepareMsg := node.Wallet.CreateMsg(MsgPrepare, block.Hash)
+						newMsg, err := json.Marshal(prepareMsg)
+						if err != nil {
+							log.Printf("Marshal prepareMsg failed, %s, msg won't be sent, skip this one!\n", err)
+							continue
+						}
+						node.broadcast(string(newMsg))
+					}
+				case MsgPrepare:
+					var prepareMsg Message
+					if err := json.Unmarshal(msg, &prepareMsg); err != nil {
+						log.Printf("Unmarshal msg->prepareMsg failed, %s, skip this one!\n", err)
+						continue
+					}
+					// check if prepareMsg is valid
+					if !node.PreparePool.MsgExists(prepareMsg) &&
+						node.PreparePool.VerifyMsg(prepareMsg) &&
+						node.Validators.ValidatorExists(prepareMsg.PublicKey) {
+						// add prepareMsg to prepare pool
+						node.PreparePool.AddMsg2Pool(prepareMsg)
+						// broadcast
+						node.broadcast(string(msg))
+
+						// PBFT MINIMUM VOTING REQUIREMENT
+						if len(node.PreparePool.mapPool[chain_util2.BytesToHex(prepareMsg.BlockHash)]) >= MIN_APPROVALS {
+							// create commitMsg and broadcast it
+							commitMsg := node.Wallet.CreateMsg(MsgCommit, prepareMsg.BlockHash)
+							newMsg, err := json.Marshal(commitMsg)
+							if err != nil {
+								log.Printf("Marshal commitMsg failed, %s, msg won't be sent, skip this one!\n", err)
+								continue
+							}
+							node.broadcast(string(newMsg))
+						}
+					}
+				case MsgCommit:
+					var commitMsg Message
+					if err := json.Unmarshal(msg, &commitMsg); err != nil {
+						log.Printf("Unmarshal msg->commitMsg failed, %s, skip this one!\n", err)
+						continue
+					}
+					// check if commitMsg is valid
+					if !node.CommitPool.MsgExists(commitMsg) &&
+						node.CommitPool.VerifyMsg(commitMsg) &&
+						node.Validators.ValidatorExists(commitMsg.PublicKey) {
+						// add commitMsg to commit pool
+						node.CommitPool.AddMsg2Pool(commitMsg)
+						// broadcast
+						node.broadcast(string(msg))
+
+						// PBFT MINIMUM VOTING REQUIREMENT
+						if len(node.CommitPool.mapPool[chain_util2.BytesToHex(commitMsg.BlockHash)]) >= MIN_APPROVALS {
+							// add block to the chain
+							node.Blockchain.AddUpdatedBlock2Chain(commitMsg.BlockHash, node.BlockPool, node.PreparePool, node.CommitPool)
+						}
+						// create rcMsg and broadcast it
+						rcMsg := node.Wallet.CreateMsg(MsgRC, commitMsg.BlockHash)
+						newMsg, err := json.Marshal(rcMsg)
+						if err != nil {
+							log.Printf("Marshal rcMsg failed, %s, msg won't be sent, skip this one!\n", err)
+							continue
+						}
+						node.broadcast(string(newMsg))
+					}
+				case MsgRC:
+					var rcMsg Message
+					if err := json.Unmarshal(msg, &rcMsg); err != nil {
+						log.Printf("Unmarshal msg->rcMsg failed, %s, skip this one!\n", err)
+						continue
+					}
+					// check if rcMsg is valid
+					if !node.RCPool.MsgExists(rcMsg) &&
+						node.RCPool.VerifyMsg(rcMsg) &&
+						node.Validators.ValidatorExists(rcMsg.PublicKey) {
+						// add rcMsg to rc pool
+						node.RCPool.AddMsg2Pool(rcMsg)
+						// broadcast
+						node.broadcast(string(msg))
+
+						// PBFT MINIMUM VOTING REQUIREMENT
+						if len(node.RCPool.mapPool[chain_util2.BytesToHex(rcMsg.BlockHash)]) >= MIN_APPROVALS {
+							// TODO: implement clean mechanism
+							log.Println("[REACHED RC!!!!!]")
+						}
+					}
+				default:
+					log.Println("[default] unknown msgType!")
+				}
+			} else {
+				log.Println("[inner] unknown msgType!")
+			}
+		} else {
+			log.Println("[outer] unknown msgType!")
+		}
 	}
 }
 

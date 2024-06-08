@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"github.com/google/uuid"
-	"log"
 	"strconv"
 )
 
@@ -25,12 +24,9 @@ func BytesToHex(src []byte) string {
 }
 
 // HexToBytes decodes the hex code to a binary slice
-func HexToBytes(src string) []byte {
+func HexToBytes(src string) ([]byte, error) {
 	res, err := hex.DecodeString(src)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return res
+	return res, err
 }
 
 // FormatUrl formats url with given host and port

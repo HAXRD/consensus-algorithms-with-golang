@@ -34,12 +34,12 @@ func TestHexToBytes(t *testing.T) {
 	data := "test data"
 	hash := Hash(data)
 	hashHex := BytesToHex(hash)
-	expected, err := hex.DecodeString(hashHex)
+	actual, err := HexToBytes(hashHex)
 	if err != nil {
 		t.Error(err)
 	}
-	if !bytes.Equal(expected, hash) {
-		t.Errorf("HexToBytes failed, expected %s, actual %s\n", expected, hash)
+	if !bytes.Equal(hash, actual) {
+		t.Errorf("HexToBytes failed, expected %s, actual %s\n", hash, actual)
 	}
 }
 

@@ -22,22 +22,22 @@ the wallet is compromised.
 */
 
 type Validators struct {
-	list []string // use each node/wallet's publicKey as identifier
+	list []PublicKey // use each node/wallet's publicKey as identifier
 }
 
 // NewValidators creates a slice of given num of validators
 func NewValidators(n int) *Validators {
-	list := make([]string, n)
+	list := make([]PublicKey, n)
 	for i := range n {
-		list[i] = chain_util2.Key2Str(NewWallet("NODE-" + strconv.Itoa(i)).publicKey)
+		list[i] = NewWallet("NODE-" + strconv.Itoa(i)).publicKey
 	}
 	return &Validators{list}
 }
 
 // ValidatorExists checks if a node/wallet is within the list
-func (vs *Validators) ValidatorExists(validator string) bool {
+func (vs *Validators) ValidatorExists(validator PublicKey) bool {
 	for _, pubKey := range vs.list {
-		if pubKey == validator {
+		if chain_util2.BytesToHex(pubKey) == chain_util2.BytesToHex(validator) {
 			return true
 		}
 	}

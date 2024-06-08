@@ -27,11 +27,59 @@ Transaction is created by a wallet, featured with the following methods:
 
 type Transaction struct {
 	Id        string `json:"id"`
-	From      string `json:"from"`
-	Event     string `json:"event"`
-	Hash      string `json:"hash"`
-	Signature string `json:"signature"`
+	From      []byte `json:"from"`
+	Event     Event  `json:"event"`
+	Hash      []byte `json:"hash"`
+	Signature []byte `json:"signature"`
 	MsgType   string `json:"msgType"`
+}
+
+// MarshalJSON is the custom Marshal function for Transaction
+func (tx Transaction) MarshalJSON() ([]byte, error) {
+	type Alias Transaction
+	return json.Marshal(&struct {
+		From      string `json:"from"`
+		Hash      string `json:"hash"`
+		Signature string `json:"signature"`
+		Alias
+	}{
+		From:      chain_util2.BytesToHex(tx.From),
+		Hash:      chain_util2.BytesToHex(tx.Hash),
+		Signature: chain_util2.BytesToHex(tx.Signature),
+		Alias:     Alias(tx),
+	})
+}
+
+// UnmarshalJSON is the custom Unmarshal function for Transaction
+func (tx *Transaction) UnmarshalJSON(data []byte) error {
+	type Alias Transaction
+	aux := &struct {
+		From      string `json:"from"`
+		Hash      string `json:"hash"`
+		Signature string `json:"signature"`
+		*Alias
+	}{
+		Alias: (*Alias)(tx),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	from, err := chain_util2.HexToBytes(aux.From)
+	if err != nil {
+		return err
+	}
+	hash, err := chain_util2.HexToBytes(aux.Hash)
+	if err != nil {
+		return err
+	}
+	signature, err := chain_util2.HexToBytes(aux.Signature)
+	if err != nil {
+		return err
+	}
+	tx.From = from
+	tx.Hash = hash
+	tx.Signature = signature
+	return nil
 }
 
 /**
@@ -68,8 +116,8 @@ func NewTx(w Wallet, data string) *Transaction {
 
 	return &Transaction{
 		Id:        chain_util2.Id(),
-		From:      chain_util2.Key2Str(w.publicKey),
-		Event:     string(eventStr),
+		From:      w.publicKey,
+		Event:     *event,
 		Hash:      hash,
 		Signature: signature,
 		MsgType:   MsgTx,
@@ -78,20 +126,13 @@ func NewTx(w Wallet, data string) *Transaction {
 
 // VerifyTx verifies a given tx with tx's msg->hash and hash->signature
 func (tx *Transaction) VerifyTx() bool {
-	// verify msgType
-	if tx.MsgType != MsgTx {
-		return false
+	eventStr, err := json.Marshal(tx.Event)
+	if err != nil {
+		log.Fatalf("Tx's event json marshal err, %v\n", err)
 	}
-	// verify msg->hash
-	if tx.Hash != chain_util2.Hash(tx.Event) {
-		return false
-	}
-	// verify hash->signature
-	publicKey := chain_util2.Str2Key(tx.From)
-	if !chain_util2.Verify(publicKey, tx.Hash, tx.Signature) {
-		return false
-	}
-	return true
+	return tx.MsgType == MsgTx && // verify msgType
+		chain_util2.BytesToHex(tx.Hash) == chain_util2.BytesToHex(chain_util2.Hash(string(eventStr))) && // verify msg->hash
+		chain_util2.Verify(tx.From, tx.Hash, tx.Signature) // verify hash->signature
 }
 
 // NewTxPool creates a tx pool that temporarily stores the pool from
@@ -118,7 +159,7 @@ func (tp *TransactionPool) TxExists(tx Transaction) bool {
 // returns true if it reaches
 func (tp *TransactionPool) AddTx2Pool(tx Transaction) bool {
 	tp.pool = append(tp.pool, tx)
-	log.Printf("Tx [%s] added to tx pool\n", chain_util2.FormatHash(tx.Hash))
+	log.Printf("Tx [%s...] added to tx pool\n", chain_util2.BytesToHex(tx.Hash)[:5])
 	if len(tp.pool) >= TX_THRESHOLD {
 		return true
 	}
@@ -134,6 +175,9 @@ func (tp *TransactionPool) VerifyTx(tx Transaction) bool {
 // Returns true if any txs have been removed;
 // Returns false otherwise.
 func (tp *TransactionPool) CleanPool(txs []Transaction) bool {
+	if txs == nil || len(txs) == 0 {
+		return false
+	}
 	newTxs := make([]Transaction, 0, len(tp.pool))
 	for _, tx := range txs {
 		if !tp.TxExists(tx) {

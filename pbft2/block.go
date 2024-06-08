@@ -3,7 +3,6 @@ package pbft2
 import (
 	"consensus-algorithms-with-golang/pbft2/chain_util2"
 	"encoding/json"
-	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -12,20 +11,19 @@ import (
 /**
 A Block stores the pool collected from tx pool, featured with the following methods:
 1. NewBlock
-2. PrintBlock
-3. Genesis
-4. HashBlock
-5. VerifyBlock
-6. VerifyBlockProposer
+2. Genesis
+3. HashBlock
+4. VerifyBlock
+5. VerifyBlockProposer
 */
 
 type Block struct {
 	Timestamp   string        `json:"timestamp"`
-	LastHash    string        `json:"lastHash"`
+	LastHash    []byte        `json:"lastHash"`
+	Hash        []byte        `json:"hash"`
 	Data        []Transaction `json:"data"`
-	Hash        string        `json:"hash"`
 	Proposer    PublicKey     `json:"proposer"`
-	Signature   string        `json:"signature"`
+	Signature   []byte        `json:"signature"`
 	Nonce       uint64        `json:"nonce"`
 	BlockMsgs   []Block       `json:"blockMsgs"`
 	PrepareMsgs []Message     `json:"prepareMsgs"`
@@ -51,11 +49,11 @@ type BlockPool struct {
 // NewBlock creates a new block
 func NewBlock(
 	timestamp string,
-	lastHash string,
+	lastHash []byte,
+	hash []byte,
 	data []Transaction,
-	hash string,
 	proposer PublicKey,
-	signature string,
+	signature []byte,
 	nonce uint64,
 	blockMsgs []Block,
 	prepareMsgs []Message,
@@ -65,8 +63,8 @@ func NewBlock(
 	block := &Block{
 		Timestamp:   timestamp,
 		LastHash:    lastHash,
-		Data:        data,
 		Hash:        hash,
+		Data:        data,
 		Proposer:    proposer,
 		Signature:   signature,
 		Nonce:       nonce,
@@ -79,33 +77,15 @@ func NewBlock(
 	return block
 }
 
-// PrintBlock prints the block info
-func PrintBlock(block Block) {
-	fmt.Printf("Block - "+
-		"Timestamp: %s\n"+
-		"LastHash: %s\n"+
-		"Data: %v\n"+
-		"Hash: %s\n"+
-		"Nonce: %d\n"+
-		"Signature: %s\n",
-		block.Timestamp,
-		block.LastHash,
-		block.Data,
-		block.Hash,
-		block.Nonce,
-		block.Signature,
-	)
-}
-
 // Genesis creates the first block of the chain
 func Genesis() *Block {
 	return NewBlock(
 		time.Now().String(),
-		"-",
+		[]byte("-----"),
+		[]byte("-----"),
 		nil,
-		"-",
 		nil,
-		"-",
+		[]byte("-----"),
 		0,
 		nil,
 		nil,
@@ -114,28 +94,34 @@ func Genesis() *Block {
 	)
 }
 
-// HashBlock hashes the block with timestamp, lastBlock's hash, marshalled data and current nonce
-func HashBlock(timestamp string, lastHash string, data []Transaction, nonce uint64) string {
+// HashBlock returns the hash of the block with timestamp, lastBlock's hash,
+// marshalled data and current nonce
+func HashBlock(timestamp string, lastHash []byte, data []Transaction, nonce uint64) []byte {
 	dataInByte, err := json.Marshal(data)
 	if err != nil {
 		panic(err)
 	}
-	return chain_util2.Hash(timestamp + lastHash + string(dataInByte) + strconv.FormatUint(nonce, 10))
+	return chain_util2.Hash(
+		timestamp + chain_util2.BytesToHex(lastHash) + string(dataInByte) + strconv.FormatUint(nonce, 10),
+	)
 }
 
 // VerifyBlock verifies the block information and its signature
 func VerifyBlock(block Block) bool {
+	hash := HashBlock(block.Timestamp, block.LastHash, block.Data, block.Nonce)
+	if chain_util2.BytesToHex(hash) != chain_util2.BytesToHex(block.Hash) {
+		return false
+	}
 	return chain_util2.Verify(
 		block.Proposer,
-		HashBlock(block.Timestamp, block.LastHash, block.Data, block.Nonce),
+		block.Hash,
 		block.Signature,
 	)
 }
 
 // VerifyBlockProposer verifies the block's proposer matches the proposer
-// TODO: might remove this
 func VerifyBlockProposer(block Block, proposer PublicKey) bool {
-	return chain_util2.Key2Str(block.Proposer) == chain_util2.Key2Str(proposer)
+	return chain_util2.BytesToHex(block.Proposer) == chain_util2.BytesToHex(proposer)
 }
 
 // NewBlockPool creates a new block pool
@@ -145,9 +131,9 @@ func NewBlockPool() *BlockPool {
 
 // BlockExists checks if a given block exists in the pool
 // by comparing its hash
-func (bp *BlockPool) BlockExists(hash string) (bool, int) {
+func (bp *BlockPool) BlockExists(hash []byte) (bool, int) {
 	for idx, b := range bp.pool {
-		if b.Hash == hash {
+		if chain_util2.BytesToHex(b.Hash) == chain_util2.BytesToHex(hash) {
 			return true, idx
 		}
 	}
@@ -157,13 +143,13 @@ func (bp *BlockPool) BlockExists(hash string) (bool, int) {
 // AddBlock2Pool adds a block to the block pool
 func (bp *BlockPool) AddBlock2Pool(block Block) {
 	bp.pool = append(bp.pool, block)
-	log.Printf("Added block [%s] to pool\n", chain_util2.FormatHash(block.Hash))
+	log.Printf("Added block [%s...] to pool\n", chain_util2.BytesToHex(block.Hash)[:5])
 }
 
 // GetBlock get a copy of the block from the pool with given hash
-func (bp *BlockPool) GetBlock(hash string) *Block {
+func (bp *BlockPool) GetBlock(hash []byte) *Block {
 	for _, b := range bp.pool {
-		if b.Hash == hash {
+		if chain_util2.BytesToHex(b.Hash) == chain_util2.BytesToHex(hash) {
 			blockCopy := b
 			return &blockCopy
 		}
@@ -172,7 +158,7 @@ func (bp *BlockPool) GetBlock(hash string) *Block {
 }
 
 // CleanPool removes the block from the pool by matching block hash
-func (bp *BlockPool) CleanPool(hash string) bool {
+func (bp *BlockPool) CleanPool(hash []byte) bool {
 	exists, idx := bp.BlockExists(hash)
 	if exists {
 		bp.pool = append(bp.pool[:idx], bp.pool[idx+1:]...)

@@ -36,13 +36,13 @@ Message stores passed-in blockHash, publicKey and signature.
 
 type Message struct {
 	MsgType   string    `json:"msgType"`
-	BlockHash string    `json:"blockHash"`
+	BlockHash []byte    `json:"blockHash"`
 	PublicKey PublicKey `json:"publicKey"`
-	Signature string    `json:"signature"`
+	Signature []byte    `json:"signature"`
 }
 
 // NewMsg creates a new message that is used for phase transition in PBFT.
-func NewMsg(msgType string, blockHash string, publicKey PublicKey, signature string) *Message {
+func NewMsg(msgType string, blockHash []byte, publicKey PublicKey, signature []byte) *Message {
 	return &Message{
 		MsgType:   msgType,
 		BlockHash: blockHash,
@@ -80,17 +80,19 @@ func NewMsgPool() *MsgPool {
 // key is message's block hash, init a list if not. Then it
 // add the message to the map pool.
 func (mp *MsgPool) AddMsg2Pool(msg Message) {
-	if mp.mapPool[msg.BlockHash] == nil {
-		mp.mapPool[msg.BlockHash] = []Message{}
+	hashHex := chain_util2.BytesToHex(msg.BlockHash)
+	if mp.mapPool[hashHex] == nil {
+		mp.mapPool[hashHex] = []Message{}
 	}
-	mp.mapPool[msg.BlockHash] = append(mp.mapPool[msg.BlockHash], msg)
+	mp.mapPool[hashHex] = append(mp.mapPool[hashHex], msg)
 }
 
 // MsgExists checks if a message for a block hash already exists or not
 // by comparing its publicKey.
 func (mp *MsgPool) MsgExists(msg Message) bool {
-	for _, m := range mp.mapPool[msg.BlockHash] {
-		if chain_util2.Key2Str(m.PublicKey) == chain_util2.Key2Str(msg.PublicKey) {
+	hashHex := chain_util2.BytesToHex(msg.BlockHash)
+	for _, m := range mp.mapPool[hashHex] {
+		if chain_util2.BytesToHex(m.PublicKey) == chain_util2.BytesToHex(msg.PublicKey) {
 			return true
 		}
 	}
@@ -103,9 +105,10 @@ func (mp *MsgPool) VerifyMsg(msg Message) bool {
 }
 
 // CleanPool remove the list with specified block hash in map pool
-func (mp *MsgPool) CleanPool(hash string) bool {
-	if mp.mapPool[hash] != nil {
-		delete(mp.mapPool, hash)
+func (mp *MsgPool) CleanPool(hash []byte) bool {
+	hashHex := chain_util2.BytesToHex(hash)
+	if mp.mapPool[hashHex] != nil {
+		delete(mp.mapPool, hashHex)
 		return true
 	} else {
 		return false

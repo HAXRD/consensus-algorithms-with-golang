@@ -15,6 +15,8 @@ func main() {
 	HOST := flag.String("HOST", "localhost", "Hostname")
 	WSPORT := flag.Uint64("WSPORT", 8080, "WebSocket port")
 	PEERS := flag.String("PEERS", "", "Comma separated list of peers")
+	flag.Parse()
+
 	validators := pbft2.NewValidators(pbft2.NUM_OF_NODES)
 	blockchain := pbft2.NewBlockchain(*validators)
 	wallet := pbft2.NewWallet(*SECRET)
@@ -24,7 +26,6 @@ func main() {
 	commitPool := pbft2.NewMsgPool()
 	rcPool := pbft2.NewMsgPool()
 
-	flag.Parse()
 	var peers []string
 	if *PEERS != "" {
 		peers = strings.Split(*PEERS, ",")

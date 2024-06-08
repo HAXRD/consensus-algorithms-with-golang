@@ -39,11 +39,11 @@ func NewWallet(secret string) *Wallet {
 
 // PrintWallet prints wallet's publicKey
 func (w *Wallet) PrintWallet() {
-	fmt.Printf("Wallet - public key: %s\n", chain_util2.Key2Str(w.publicKey))
+	fmt.Printf("Wallet - public key: %s\n", chain_util2.BytesToHex(w.publicKey))
 }
 
 // Sign uses wallet's privateKey to sign a given hash and returns a signature
-func (w *Wallet) Sign(hash string) string {
+func (w *Wallet) Sign(hash []byte) []byte {
 	signature := chain_util2.Sign(w.privateKey, hash)
 	return signature
 }
@@ -71,19 +71,19 @@ func (w *Wallet) CreateBlock(lastBlock Block, data []Transaction) *Block {
 	block := NewBlock(
 		timestamp,
 		lastHash,
-		data,
 		hash,
+		data,
 		w.publicKey,
 		signature,
 		nonce,
 		nil, nil, nil, nil,
 	)
-	log.Printf("Created block [%s]\n", chain_util2.FormatHash(block.Hash))
+	log.Printf("Created block [%s...]\n", chain_util2.BytesToHex(block.Hash))
 	return block
 }
 
 // CreateMsg creates a message for PBFT phase transition
-func (w *Wallet) CreateMsg(msgType string, blockHash string) *Message {
+func (w *Wallet) CreateMsg(msgType string, blockHash []byte) *Message {
 	return NewMsg(
 		msgType,
 		blockHash,
