@@ -159,7 +159,7 @@ func (tp *TransactionPool) TxExists(tx Transaction) bool {
 // returns true if it reaches
 func (tp *TransactionPool) AddTx2Pool(tx Transaction) bool {
 	tp.pool = append(tp.pool, tx)
-	log.Printf("Tx [%s...] added to tx pool\n", chain_util2.BytesToHex(tx.Hash)[:5])
+	log.Printf("Tx [%s] added to tx pool\n", chain_util2.BytesToHex(tx.Hash)[:5])
 	if len(tp.pool) >= TX_THRESHOLD {
 		return true
 	}

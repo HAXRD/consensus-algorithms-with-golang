@@ -143,7 +143,7 @@ func (bp *BlockPool) BlockExists(hash []byte) (bool, int) {
 // AddBlock2Pool adds a block to the block pool
 func (bp *BlockPool) AddBlock2Pool(block Block) {
 	bp.pool = append(bp.pool, block)
-	log.Printf("Added block [%s...] to pool\n", chain_util2.BytesToHex(block.Hash)[:5])
+	log.Printf("Added block [%s] to pool\n", chain_util2.BytesToHex(block.Hash)[:5])
 }
 
 // GetBlock get a copy of the block from the pool with given hash

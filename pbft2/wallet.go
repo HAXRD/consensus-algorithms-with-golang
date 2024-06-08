@@ -78,7 +78,7 @@ func (w *Wallet) CreateBlock(lastBlock Block, data []Transaction) *Block {
 		nonce,
 		nil, nil, nil, nil,
 	)
-	log.Printf("Created block [%s...]\n", chain_util2.BytesToHex(block.Hash))
+	log.Printf("Created block [%s]\n", chain_util2.BytesToHex(block.Hash))
 	return block
 }
 
