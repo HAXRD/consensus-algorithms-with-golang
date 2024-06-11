@@ -396,7 +396,7 @@ type MsgPoolItem struct {
 // Data defines the data object sent to frontend server for display
 type Data struct {
 	NodeHash    string          `json:"nodeHash"`
-	BlockChain  []string        `json:"blockChain"`
+	BlockChain  []string        `json:"blockchain"`
 	Sockets     []string        `json:"sockets"`
 	TxPool      TxPoolInfo      `json:"txPool"`
 	BlockPool   []BlockPoolItem `json:"blockPool"`

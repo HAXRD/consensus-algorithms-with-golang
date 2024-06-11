@@ -87,10 +87,10 @@ func NewNode(host string, wsPort uint64, vs Validators, bc Blockchain, w Wallet,
 }
 
 // launchHttpServer launches the Http endpoint server
-func (node *Node) launchHttpServer() {
+func (node *Node) launchHttpServer(mux *http.ServeMux) {
 	httpUrl := chain_util2.FormatUrl(node.Host, node.Port)
 	log.Printf("Http server listening on [%s]...\n", httpUrl)
-	err := http.ListenAndServe(httpUrl, nil)
+	err := http.ListenAndServe(httpUrl, corsMiddleware(mux))
 	if err != nil {
 		log.Fatalf("Http server listen failed, %s\n", err)
 	}
@@ -197,14 +197,30 @@ func (node *Node) connectPeers(peers []string) {
 	}
 }
 
+// CORS middleware
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Listen launches the http endpoints, websocket server, websocket client
 // and then connects to peers.
 func (node *Node) Listen(peers []string) {
 	// http endpoints
-	http.HandleFunc("/queryNodeInfo2", node.queryNodeInfo2Handler)
-	http.HandleFunc("/queryNodeInfo", node.queryNodeInfoHandler)
-	http.HandleFunc("/makeTx", node.makeTxHandler)
-	go node.launchHttpServer()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/queryNodeInfo2", node.queryNodeInfo2Handler)
+	mux.HandleFunc("/queryNodeInfo", node.queryNodeInfoHandler)
+	mux.HandleFunc("/makeTx", node.makeTxHandler)
+	go node.launchHttpServer(mux)
 
 	// websocket server
 	http.HandleFunc("/ws", node.wsServerHandler)
