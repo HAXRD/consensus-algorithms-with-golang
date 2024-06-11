@@ -48,17 +48,23 @@ func (bc *Blockchain) AddUpdatedBlock2Chain(
 	hash []byte,
 	blockPool BlockPool, preparePool MsgPool, commitPool MsgPool) {
 
-	exists, _ := blockPool.BlockExists(hash)
-	if !exists {
-		log.Printf("Added block [%s] to blockchain failed, BLOCK EXISTS!", chain_util2.BytesToHex(hash)[:5])
+	existsInPool, _ := blockPool.BlockExists(hash)
+	if !existsInPool {
+		log.Printf("Added block [%s] to blockchain failed, BLOCK NOT EXISTS IN BLOCK POOL!", chain_util2.BytesToHex(hash)[:6])
 	} else {
 		hashHex := chain_util2.BytesToHex(hash)
 		block := blockPool.GetBlock(hash)
+		// check if the proposed block is matching the lastblock
+		if chain_util2.BytesToHex(block.LastHash) != chain_util2.BytesToHex(bc.chain[len(bc.chain)-1].Hash) {
+			log.Printf("Added block [%s] to blockchain failed, BLOCK'S LASTHASH NOT MATCHED!", chain_util2.BytesToHex(hash)[:6])
+			return
+		}
+
 		block.BlockMsgs = blockPool.pool
 		block.PrepareMsgs = preparePool.mapPool[hashHex]
 		block.CommitMsgs = commitPool.mapPool[hashHex]
 		bc.chain = append(bc.chain, *block)
-		log.Printf("Added block [%s] to blockchain succeed!", chain_util2.BytesToHex(hash)[:5])
+		log.Printf("Added block [%s] to blockchain succeed!", chain_util2.BytesToHex(hash)[:6])
 	}
 }
 
@@ -75,10 +81,10 @@ func (bc *Blockchain) VerifyBlock(block Block) bool {
 		chain_util2.BytesToHex(block.Hash) == chain_util2.BytesToHex(HashBlock(block.Timestamp, block.LastHash, block.Data, block.Nonce)) &&
 		VerifyBlock(block) &&
 		VerifyBlockProposer(block, block.Proposer) {
-		log.Printf("Block [%s] is VALID", chain_util2.BytesToHex(block.Hash)[:5])
+		log.Printf("Block [%s] is VALID", chain_util2.BytesToHex(block.Hash)[:6])
 		return true
 	} else {
-		log.Printf("Block [%s] is INVALID", chain_util2.BytesToHex(block.Hash)[:5])
+		log.Printf("Block [%s] is INVALID", chain_util2.BytesToHex(block.Hash)[:6])
 		return false
 	}
 }

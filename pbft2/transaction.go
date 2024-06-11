@@ -93,7 +93,9 @@ It features the following methods:
 */
 
 type TransactionPool struct {
-	pool []Transaction
+	pool       []Transaction
+	inProgress map[string]Transaction
+	committed  map[string]Transaction
 }
 
 // NewEvent creates a message with given data and timestamp
@@ -141,12 +143,26 @@ func (tx *Transaction) VerifyTx() bool {
 // TODO: make sure this removing logic works!
 func NewTxPool() *TransactionPool {
 	return &TransactionPool{
-		pool: make([]Transaction, 0, 2*TX_THRESHOLD),
+		pool:       make([]Transaction, 0, TX_THRESHOLD+1),
+		inProgress: make(map[string]Transaction),
+		committed:  make(map[string]Transaction),
 	}
 }
 
 // TxExists checks if a tx exists in the pool or not
 func (tp *TransactionPool) TxExists(tx Transaction) bool {
+	var ok bool
+	// tx in committed
+	_, ok = tp.committed[tx.Id]
+	if ok {
+		return true
+	}
+	// tx in in-process
+	_, ok = tp.inProgress[tx.Id]
+	if ok {
+		return true
+	}
+	// tx in tx pool
 	for _, _tx := range tp.pool {
 		if _tx.Id == tx.Id {
 			return true
@@ -157,13 +173,27 @@ func (tp *TransactionPool) TxExists(tx Transaction) bool {
 
 // AddTx2Pool adds a given tx's address to the pool
 // returns true if it reaches
-func (tp *TransactionPool) AddTx2Pool(tx Transaction) bool {
-	tp.pool = append(tp.pool, tx)
-	log.Printf("Tx [%s] added to tx pool\n", chain_util2.BytesToHex(tx.Hash)[:5])
-	if len(tp.pool) >= TX_THRESHOLD {
-		return true
+func (tp *TransactionPool) AddTx2Pool(tx Transaction) ([]Transaction, bool) {
+	// skip if exists
+	if tp.TxExists(tx) {
+		return nil, false
 	}
-	return false
+	tp.pool = append(tp.pool, tx)
+	log.Printf("Tx [%s] added to tx pool\n", chain_util2.BytesToHex(tx.Hash)[:6])
+	if len(tp.pool) >= TX_THRESHOLD {
+		// performing deep copy
+		poolCopy := make([]Transaction, len(tp.pool))
+		for i, transaction := range tp.pool {
+			// copy data for return
+			poolCopy[i] = transaction
+			// copy data to "in progress"
+			tp.inProgress[transaction.Id] = transaction
+		}
+		// performing delete pool
+		tp.pool = tp.pool[:0]
+		return poolCopy, true
+	}
+	return nil, true
 }
 
 // VerifyTx checks if a given tx is valid or not
@@ -171,23 +201,18 @@ func (tp *TransactionPool) VerifyTx(tx Transaction) bool {
 	return tx.VerifyTx()
 }
 
-// CleanPool cleans all pool exist in the given block.
-// Returns true if any txs have been removed;
-// Returns false otherwise.
-func (tp *TransactionPool) CleanPool(txs []Transaction) bool {
-	if txs == nil || len(txs) == 0 {
-		return false
-	}
-	newTxs := make([]Transaction, 0, len(tp.pool))
+func (tp *TransactionPool) TransferInProgressToCommitted(txs []Transaction) bool {
+	// check if all txs passed-in exist in "in-progress"
 	for _, tx := range txs {
-		if !tp.TxExists(tx) {
-			newTxs = append(newTxs, tx)
+		if _, ok := tp.inProgress[tx.Id]; !ok {
+			return false
 		}
 	}
-	if len(newTxs) == len(tp.pool) {
-		return false
-	} else {
-		tp.pool = newTxs
-		return true
+	// delete from "in-progress"
+	// then add to "committed"
+	for _, tx := range txs {
+		delete(tp.inProgress, tx.Id)
+		tp.committed[tx.Id] = tx
 	}
+	return true
 }

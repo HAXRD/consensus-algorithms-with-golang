@@ -92,10 +92,10 @@ func TestTransactionPool_AddTx2Pool(t *testing.T) {
 	tp := NewTxPool()
 	for i := range TX_THRESHOLD {
 		tx := NewTx(*w, data)
-		full := tp.AddTx2Pool(*tx)
-		if i+1 < TX_THRESHOLD && full {
+		poolCopy, _ := tp.AddTx2Pool(*tx)
+		if i+1 < TX_THRESHOLD && (poolCopy != nil || len(tp.inProgress) != 0) {
 			t.Errorf("AddTx2Pool should return false")
-		} else if i+1 >= TX_THRESHOLD && !full {
+		} else if i+1 >= TX_THRESHOLD && (poolCopy == nil || len(tp.inProgress) == 0) {
 			t.Errorf("AddTx2Pool should return true")
 		}
 	}
@@ -122,22 +122,40 @@ func TestTransactionPool_TxExists(t *testing.T) {
 	}
 }
 
-func TestTransactionPool_CleanPool(t *testing.T) {
+func TestTransactionPool_TransferInProgressToCommitted(t *testing.T) {
 	data := "data"
 	w := NewWallet("test")
 	tx1 := NewTx(*w, data)
 	tx2 := NewTx(*w, data)
 	tx3 := NewTx(*w, data)
 	tp := NewTxPool()
-	tp.AddTx2Pool(*tx1)
-	tp.AddTx2Pool(*tx2)
-	tp.AddTx2Pool(*tx3)
-	cleaned := tp.CleanPool(nil)
-	if cleaned {
-		t.Errorf("CleanPool should return false")
+	var returnedTxs []Transaction
+	returnedTxs, _ = tp.AddTx2Pool(*tx1)
+	if returnedTxs != nil {
+		t.Errorf("AddTx2Pool should return nil")
 	}
-	cleaned = tp.CleanPool([]Transaction{*tx1})
-	if !cleaned || tp.AddTx2Pool(*tx1) {
-		t.Errorf("CleanPool failed")
+	returnedTxs, _ = tp.AddTx2Pool(*tx2)
+	if returnedTxs != nil {
+		t.Errorf("AddTx2Pool should return nil")
+	}
+	if len(tp.inProgress) != 0 {
+		t.Errorf("InProgress should be empty")
+	}
+	if len(tp.committed) != 0 {
+		t.Errorf("Committed should be empty")
+	}
+	returnedTxs, _ = tp.AddTx2Pool(*tx3)
+	if returnedTxs == nil {
+		t.Errorf("AddTx2Pool should return txs")
+	}
+	if len(tp.inProgress) == 0 {
+		t.Errorf("InProgress should not be empty")
+	}
+	if len(tp.committed) != 0 {
+		t.Errorf("Committed should be empty")
+	}
+	success := tp.TransferInProgressToCommitted(returnedTxs)
+	if !success || len(tp.inProgress) != 0 || len(tp.committed) == 0 {
+		t.Errorf("TransferInProgressToCommitted failed")
 	}
 }

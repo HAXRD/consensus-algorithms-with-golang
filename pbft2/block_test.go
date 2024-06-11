@@ -10,7 +10,7 @@ import (
 
 func TestGenesis(t *testing.T) {
 	genesis := Genesis()
-	dHex := chain_util2.BytesToHex([]byte("-"))
+	dHex := chain_util2.BytesToHex([]byte("------"))
 	if chain_util2.BytesToHex(genesis.LastHash) != dHex ||
 		chain_util2.BytesToHex(genesis.Hash) != dHex ||
 		genesis.Data != nil ||

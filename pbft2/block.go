@@ -81,11 +81,11 @@ func NewBlock(
 func Genesis() *Block {
 	return NewBlock(
 		time.Now().String(),
-		[]byte("-----"),
-		[]byte("-----"),
+		[]byte("------"),
+		[]byte("------"),
 		nil,
 		nil,
-		[]byte("-----"),
+		[]byte("------"),
 		0,
 		nil,
 		nil,
@@ -141,9 +141,15 @@ func (bp *BlockPool) BlockExists(hash []byte) (bool, int) {
 }
 
 // AddBlock2Pool adds a block to the block pool
-func (bp *BlockPool) AddBlock2Pool(block Block) {
+func (bp *BlockPool) AddBlock2Pool(block Block) bool {
+	// skip if exists
+	if exists, _ := bp.BlockExists(block.Hash); exists {
+		return false
+	}
+
 	bp.pool = append(bp.pool, block)
-	log.Printf("Added block [%s] to pool\n", chain_util2.BytesToHex(block.Hash)[:5])
+	log.Printf("Added block [%s] to pool\n", chain_util2.BytesToHex(block.Hash)[:6])
+	return true
 }
 
 // GetBlock get a copy of the block from the pool with given hash

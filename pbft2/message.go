@@ -79,12 +79,17 @@ func NewMsgPool() *MsgPool {
 // the map pool already has the specified message list whose
 // key is message's block hash, init a list if not. Then it
 // add the message to the map pool.
-func (mp *MsgPool) AddMsg2Pool(msg Message) {
+func (mp *MsgPool) AddMsg2Pool(msg Message) bool {
+	// skip if exists
+	if mp.MsgExists(msg) {
+		return false
+	}
 	hashHex := chain_util2.BytesToHex(msg.BlockHash)
 	if mp.mapPool[hashHex] == nil {
 		mp.mapPool[hashHex] = []Message{}
 	}
 	mp.mapPool[hashHex] = append(mp.mapPool[hashHex], msg)
+	return true
 }
 
 // MsgExists checks if a message for a block hash already exists or not

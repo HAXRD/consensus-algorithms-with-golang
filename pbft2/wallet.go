@@ -39,7 +39,7 @@ func NewWallet(secret string) *Wallet {
 
 // PrintWallet prints wallet's publicKey
 func (w *Wallet) PrintWallet() {
-	fmt.Printf("Wallet - public key: %s\n", chain_util2.BytesToHex(w.publicKey))
+	fmt.Printf("Wallet - public key: %s\n", chain_util2.BytesToHex(w.publicKey)[:6])
 }
 
 // Sign uses wallet's privateKey to sign a given hash and returns a signature
@@ -78,7 +78,7 @@ func (w *Wallet) CreateBlock(lastBlock Block, data []Transaction) *Block {
 		nonce,
 		nil, nil, nil, nil,
 	)
-	log.Printf("Created block [%s]\n", chain_util2.BytesToHex(block.Hash))
+	log.Printf("Created block [%s]\n", chain_util2.BytesToHex(block.Hash)[:6])
 	return block
 }
 

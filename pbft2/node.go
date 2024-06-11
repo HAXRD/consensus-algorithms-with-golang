@@ -201,6 +201,7 @@ func (node *Node) connectPeers(peers []string) {
 // and then connects to peers.
 func (node *Node) Listen(peers []string) {
 	// http endpoints
+	http.HandleFunc("/queryNodeInfo2", node.queryNodeInfo2Handler)
 	http.HandleFunc("/queryNodeInfo", node.queryNodeInfoHandler)
 	http.HandleFunc("/makeTx", node.makeTxHandler)
 	go node.launchHttpServer()
