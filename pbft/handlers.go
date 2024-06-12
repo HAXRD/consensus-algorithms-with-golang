@@ -1,7 +1,7 @@
-package pbft2
+package pbft
 
 import (
-	"consensus-algorithms-with-golang/pbft2/chain_util2"
+	"consensus-algorithms-with-golang/pbft/chain_util"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
@@ -13,16 +13,16 @@ import (
 // queryNodeInfoHandler queries the sockets of the node
 func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
-	str := fmt.Sprintf("Node[%s] Info:\n", chain_util2.BytesToHex(node.Wallet.publicKey)[:6])
+	str := fmt.Sprintf("Node[%s] Info:\n", chain_util.BytesToHex(node.Wallet.publicKey)[:6])
 	// validators
 	str += "\n[Validators]\n"
 	for i, pubKey := range node.Validators.list {
-		str += fmt.Sprintf("%d: %s\n", i, chain_util2.BytesToHex(pubKey)[:6])
+		str += fmt.Sprintf("%d: %s\n", i, chain_util.BytesToHex(pubKey)[:6])
 	}
 	// blockchain
 	str += "\n[Blockchain]\n"
 	for i, block := range node.Blockchain.chain {
-		str += fmt.Sprintf("[%s]", chain_util2.BytesToHex(block.Hash)[:6])
+		str += fmt.Sprintf("[%s]", chain_util.BytesToHex(block.Hash)[:6])
 		if i < len(node.Blockchain.chain)-1 {
 			str += "-->"
 		} else {
@@ -38,19 +38,19 @@ func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 	// TxPool
 	str += "\n[TxPool]\n"
 	for i, tx := range node.TxPool.pool {
-		str += fmt.Sprintf("%d: %s by %s\n", i, chain_util2.BytesToHex(tx.Hash)[:6], chain_util2.BytesToHex(tx.From)[:6])
+		str += fmt.Sprintf("%d: %s by %s\n", i, chain_util.BytesToHex(tx.Hash)[:6], chain_util.BytesToHex(tx.From)[:6])
 	}
 	// BlockPool
 	str += "\n[BlockPool]\n"
 	for i, block := range node.BlockPool.pool {
-		str += fmt.Sprintf("%d: %s by %s\n", i, chain_util2.BytesToHex(block.Hash)[:6], chain_util2.BytesToHex(block.Proposer)[:6])
+		str += fmt.Sprintf("%d: %s by %s\n", i, chain_util.BytesToHex(block.Hash)[:6], chain_util.BytesToHex(block.Proposer)[:6])
 	}
 	// PreparePool
 	str += "\n[PreparePool]\n"
 	for bh, msgs := range node.PreparePool.mapPool {
 		str += fmt.Sprintf("--> %s\n", bh[:5])
 		for i, msg := range msgs {
-			str += fmt.Sprintf("%d: %s\n", i, chain_util2.BytesToHex(msg.PublicKey)[:6])
+			str += fmt.Sprintf("%d: %s\n", i, chain_util.BytesToHex(msg.PublicKey)[:6])
 		}
 	}
 	// CommitPool
@@ -58,7 +58,7 @@ func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 	for bh, msgs := range node.CommitPool.mapPool {
 		str += fmt.Sprintf("--> %s\n", bh[:5])
 		for i, msg := range msgs {
-			str += fmt.Sprintf("%d: %s\n", i, chain_util2.BytesToHex(msg.PublicKey)[:6])
+			str += fmt.Sprintf("%d: %s\n", i, chain_util.BytesToHex(msg.PublicKey)[:6])
 		}
 	}
 	// RCPool
@@ -66,7 +66,7 @@ func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 	for bh, msgs := range node.RCPool.mapPool {
 		str += fmt.Sprintf("--> %s\n", bh[:6])
 		for i, msg := range msgs {
-			str += fmt.Sprintf("%d: %s\n", i, chain_util2.BytesToHex(msg.PublicKey)[:6])
+			str += fmt.Sprintf("%d: %s\n", i, chain_util.BytesToHex(msg.PublicKey)[:6])
 		}
 	}
 	_, err := w.Write([]byte(str))
@@ -153,7 +153,7 @@ func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 
 						if poolCopy != nil {
 							log.Println("THRESHOLD REACHED!")
-							if chain_util2.BytesToHex(node.Blockchain.GetProposer()) == chain_util2.BytesToHex(node.Wallet.publicKey) {
+							if chain_util.BytesToHex(node.Blockchain.GetProposer()) == chain_util.BytesToHex(node.Wallet.publicKey) {
 								log.Println("PROPOSING A NEW BLOCK!")
 								block := node.Blockchain.CreateBlock(node.Wallet, poolCopy)
 
@@ -214,7 +214,7 @@ func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 						node.broadcast(string(msg))
 
 						// PBFT MINIMUM VOTING REQUIREMENT
-						if len(node.PreparePool.mapPool[chain_util2.BytesToHex(prepareMsg.BlockHash)]) >= MIN_APPROVALS {
+						if len(node.PreparePool.mapPool[chain_util.BytesToHex(prepareMsg.BlockHash)]) >= MIN_APPROVALS {
 							// create commitMsg and broadcast it
 							commitMsg := node.Wallet.CreateMsg(MsgCommit, prepareMsg.BlockHash)
 							newMsg, err := json.Marshal(commitMsg)
@@ -246,7 +246,7 @@ func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 						node.broadcast(string(msg))
 
 						// PBFT MINIMUM VOTING REQUIREMENT
-						if len(node.CommitPool.mapPool[chain_util2.BytesToHex(commitMsg.BlockHash)]) >= MIN_APPROVALS {
+						if len(node.CommitPool.mapPool[chain_util.BytesToHex(commitMsg.BlockHash)]) >= MIN_APPROVALS {
 							// add block to the chain
 							mutex.Lock()
 							node.Blockchain.AddUpdatedBlock2Chain(commitMsg.BlockHash, node.BlockPool, node.PreparePool, node.CommitPool)
@@ -282,7 +282,7 @@ func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 						node.broadcast(string(msg))
 
 						// PBFT MINIMUM VOTING REQUIREMENT
-						if len(node.RCPool.mapPool[chain_util2.BytesToHex(rcMsg.BlockHash)]) >= MIN_APPROVALS {
+						if len(node.RCPool.mapPool[chain_util.BytesToHex(rcMsg.BlockHash)]) >= MIN_APPROVALS {
 							// TODO: implement clean mechanism
 							log.Println("[REACHED RC!!!!!]")
 							mutex.Lock()
@@ -412,12 +412,12 @@ type Data struct {
 
 func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	nodeHash := chain_util2.BytesToHex(node.Wallet.publicKey)[:6]
+	nodeHash := chain_util.BytesToHex(node.Wallet.publicKey)[:6]
 	blockChain := make([]BlockInfo, 0, len(node.Blockchain.chain))
 	for _, block := range node.Blockchain.chain {
 		blockChain = append(blockChain, BlockInfo{
-			Hash:     chain_util2.BytesToHex(block.Hash)[:6],
-			Proposer: chain_util2.BytesToHex(block.Proposer)[:6],
+			Hash:     chain_util.BytesToHex(block.Hash)[:6],
+			Proposer: chain_util.BytesToHex(block.Proposer)[:6],
 		})
 	}
 	sockets := make([]string, 0, len(node.Sockets))
@@ -433,16 +433,16 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 	for i, transaction := range node.TxPool.pool {
 		txPool.Waiting[i] = TxPoolItem{
 			Index:  i,
-			Hash:   chain_util2.BytesToHex(transaction.Hash)[:6],
-			PubKey: chain_util2.BytesToHex(transaction.From)[:6],
+			Hash:   chain_util.BytesToHex(transaction.Hash)[:6],
+			PubKey: chain_util.BytesToHex(transaction.From)[:6],
 		}
 	}
 	var index int = 0
 	for _, transaction := range node.TxPool.inProgress {
 		txPool.InProgress = append(txPool.InProgress, TxPoolItem{
 			Index:  index,
-			Hash:   chain_util2.BytesToHex(transaction.Hash)[:6],
-			PubKey: chain_util2.BytesToHex(transaction.From)[:6],
+			Hash:   chain_util.BytesToHex(transaction.Hash)[:6],
+			PubKey: chain_util.BytesToHex(transaction.From)[:6],
 		})
 		index += 1
 	}
@@ -450,8 +450,8 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 	for _, transaction := range node.TxPool.committed {
 		txPool.Committed = append(txPool.Committed, TxPoolItem{
 			Index:  index,
-			Hash:   chain_util2.BytesToHex(transaction.Hash)[:6],
-			PubKey: chain_util2.BytesToHex(transaction.From)[:6],
+			Hash:   chain_util.BytesToHex(transaction.Hash)[:6],
+			PubKey: chain_util.BytesToHex(transaction.From)[:6],
 		})
 		index += 1
 	}
@@ -460,8 +460,8 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 	for i, block := range node.BlockPool.pool {
 		blockPool = append(blockPool, BlockPoolItem{
 			Index:     i,
-			BlockHash: chain_util2.BytesToHex(block.Hash)[:6],
-			PubKey:    chain_util2.BytesToHex(block.Proposer)[:6],
+			BlockHash: chain_util.BytesToHex(block.Hash)[:6],
+			PubKey:    chain_util.BytesToHex(block.Proposer)[:6],
 		})
 	}
 	preparePool := make([]MsgPoolItem, 0, len(node.PreparePool.mapPool))
@@ -470,7 +470,7 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 		for index, msg := range msgs {
 			fromWhos = append(fromWhos, FromWho{
 				Index:  index,
-				PubKey: chain_util2.BytesToHex(msg.PublicKey)[:6],
+				PubKey: chain_util.BytesToHex(msg.PublicKey)[:6],
 			})
 		}
 		preparePool = append(preparePool, MsgPoolItem{
@@ -484,7 +484,7 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 		for index, msg := range msgs {
 			fromWhos = append(fromWhos, FromWho{
 				Index:  index,
-				PubKey: chain_util2.BytesToHex(msg.PublicKey)[:6],
+				PubKey: chain_util.BytesToHex(msg.PublicKey)[:6],
 			})
 		}
 		commitPool = append(commitPool, MsgPoolItem{
@@ -498,7 +498,7 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 		for index, msg := range msgs {
 			fromWhos = append(fromWhos, FromWho{
 				Index:  index,
-				PubKey: chain_util2.BytesToHex(msg.PublicKey)[:6],
+				PubKey: chain_util.BytesToHex(msg.PublicKey)[:6],
 			})
 		}
 		rcPool = append(rcPool, MsgPoolItem{

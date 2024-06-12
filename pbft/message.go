@@ -1,6 +1,6 @@
-package pbft2
+package pbft
 
-import "consensus-algorithms-with-golang/pbft2/chain_util2"
+import "consensus-algorithms-with-golang/pbft/chain_util"
 
 /**
 PBFT uses 3 phases to ensure consensus, pre-prepare, prepare, and commit.
@@ -84,7 +84,7 @@ func (mp *MsgPool) AddMsg2Pool(msg Message) bool {
 	if mp.MsgExists(msg) {
 		return false
 	}
-	hashHex := chain_util2.BytesToHex(msg.BlockHash)
+	hashHex := chain_util.BytesToHex(msg.BlockHash)
 	if mp.mapPool[hashHex] == nil {
 		mp.mapPool[hashHex] = []Message{}
 	}
@@ -95,9 +95,9 @@ func (mp *MsgPool) AddMsg2Pool(msg Message) bool {
 // MsgExists checks if a message for a block hash already exists or not
 // by comparing its publicKey.
 func (mp *MsgPool) MsgExists(msg Message) bool {
-	hashHex := chain_util2.BytesToHex(msg.BlockHash)
+	hashHex := chain_util.BytesToHex(msg.BlockHash)
 	for _, m := range mp.mapPool[hashHex] {
-		if chain_util2.BytesToHex(m.PublicKey) == chain_util2.BytesToHex(msg.PublicKey) {
+		if chain_util.BytesToHex(m.PublicKey) == chain_util.BytesToHex(msg.PublicKey) {
 			return true
 		}
 	}
@@ -106,12 +106,12 @@ func (mp *MsgPool) MsgExists(msg Message) bool {
 
 // VerifyMsg verifies the passed-in message
 func (mp *MsgPool) VerifyMsg(msg Message) bool {
-	return chain_util2.Verify(msg.PublicKey, msg.BlockHash, msg.Signature)
+	return chain_util.Verify(msg.PublicKey, msg.BlockHash, msg.Signature)
 }
 
 // CleanPool remove the list with specified block hash in map pool
 func (mp *MsgPool) CleanPool(hash []byte) bool {
-	hashHex := chain_util2.BytesToHex(hash)
+	hashHex := chain_util.BytesToHex(hash)
 	if mp.mapPool[hashHex] != nil {
 		delete(mp.mapPool, hashHex)
 		return true

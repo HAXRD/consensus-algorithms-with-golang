@@ -1,4 +1,4 @@
-package chain_util2
+package chain_util
 
 import (
 	"bytes"

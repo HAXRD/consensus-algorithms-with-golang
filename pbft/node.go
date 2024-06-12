@@ -1,7 +1,7 @@
-package pbft2
+package pbft
 
 import (
-	"consensus-algorithms-with-golang/pbft2/chain_util2"
+	"consensus-algorithms-with-golang/pbft/chain_util"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
@@ -88,7 +88,7 @@ func NewNode(host string, wsPort uint64, vs Validators, bc Blockchain, w Wallet,
 
 // launchHttpServer launches the Http endpoint server
 func (node *Node) launchHttpServer(mux *http.ServeMux) {
-	httpUrl := chain_util2.FormatUrl(node.Host, node.Port)
+	httpUrl := chain_util.FormatUrl(node.Host, node.Port)
 	log.Printf("Http server listening on [%s]...\n", httpUrl)
 	err := http.ListenAndServe(httpUrl, corsMiddleware(mux))
 	if err != nil {
@@ -98,7 +98,7 @@ func (node *Node) launchHttpServer(mux *http.ServeMux) {
 
 // launchWsServer launches the websocket server
 func (node *Node) launchWsServer() {
-	wsServerUrl := chain_util2.FormatUrl(node.Host, node.WsPort)
+	wsServerUrl := chain_util.FormatUrl(node.Host, node.WsPort)
 	log.Printf("Websocket server listening on [%s]...\n", wsServerUrl)
 	err := http.ListenAndServe(wsServerUrl, nil)
 	if err != nil {
@@ -119,7 +119,7 @@ func (node *Node) launchWsClient() {
 	var wsClientConn *websocket.Conn
 	var err error
 	for {
-		wsServerUrl := fmt.Sprintf("ws://%s/ws", chain_util2.FormatUrl(node.Host, node.WsPort))
+		wsServerUrl := fmt.Sprintf("ws://%s/ws", chain_util.FormatUrl(node.Host, node.WsPort))
 		log.Printf("Dialing itself [%s]...\n", wsServerUrl)
 		wsClientConn, _, err = websocket.DefaultDialer.Dial(wsServerUrl, nil)
 		if err != nil {

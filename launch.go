@@ -1,7 +1,7 @@
 package main
 
 import (
-	"consensus-algorithms-with-golang/pbft2"
+	"consensus-algorithms-with-golang/pbft"
 	"flag"
 	"log"
 	"os"
@@ -17,14 +17,14 @@ func main() {
 	PEERS := flag.String("PEERS", "", "Comma separated list of peers")
 	flag.Parse()
 
-	validators := pbft2.NewValidators(pbft2.NUM_OF_NODES)
-	blockchain := pbft2.NewBlockchain(*validators)
-	wallet := pbft2.NewWallet(*SECRET)
-	txPool := pbft2.NewTxPool()
-	blockPool := pbft2.NewBlockPool()
-	preparePool := pbft2.NewMsgPool()
-	commitPool := pbft2.NewMsgPool()
-	rcPool := pbft2.NewMsgPool()
+	validators := pbft.NewValidators(pbft.NUM_OF_NODES)
+	blockchain := pbft.NewBlockchain(*validators)
+	wallet := pbft.NewWallet(*SECRET)
+	txPool := pbft.NewTxPool()
+	blockPool := pbft.NewBlockPool()
+	preparePool := pbft.NewMsgPool()
+	commitPool := pbft.NewMsgPool()
+	rcPool := pbft.NewMsgPool()
 
 	var peers []string
 	if *PEERS != "" {
@@ -33,7 +33,7 @@ func main() {
 		peers = nil
 	}
 
-	node := pbft2.NewNode(
+	node := pbft.NewNode(
 		*HOST,
 		*WSPORT,
 		*validators,
