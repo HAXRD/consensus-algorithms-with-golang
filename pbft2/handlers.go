@@ -365,6 +365,11 @@ func (node *Node) makeTxHandler(w http.ResponseWriter, r *http.Request) {
 //6. queryRCPoolHandler
 //7. queryBlockchainHandler
 
+type BlockInfo struct {
+	Hash     string `json:"hash"`
+	Proposer string `json:"proposer"`
+}
+
 type TxPoolItem struct {
 	Index  int    `json:"index"`
 	Hash   string `json:"hash"`
@@ -389,14 +394,14 @@ type FromWho struct {
 }
 
 type MsgPoolItem struct {
-	TxHash   string    `json:"txHash"`
-	FromWhos []FromWho `json:"fromWhos"`
+	BlockHash string    `json:"blockHash"`
+	FromWhos  []FromWho `json:"fromWhos"`
 }
 
 // Data defines the data object sent to frontend server for display
 type Data struct {
 	NodeHash    string          `json:"nodeHash"`
-	BlockChain  []string        `json:"blockchain"`
+	BlockChain  []BlockInfo     `json:"blockchain"`
 	Sockets     []string        `json:"sockets"`
 	TxPool      TxPoolInfo      `json:"txPool"`
 	BlockPool   []BlockPoolItem `json:"blockPool"`
@@ -408,9 +413,12 @@ type Data struct {
 func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	nodeHash := chain_util2.BytesToHex(node.Wallet.publicKey)[:6]
-	blockChain := make([]string, 0, len(node.Blockchain.chain))
+	blockChain := make([]BlockInfo, 0, len(node.Blockchain.chain))
 	for _, block := range node.Blockchain.chain {
-		blockChain = append(blockChain, chain_util2.BytesToHex(block.Hash)[:6])
+		blockChain = append(blockChain, BlockInfo{
+			Hash:     chain_util2.BytesToHex(block.Hash)[:6],
+			Proposer: chain_util2.BytesToHex(block.Proposer)[:6],
+		})
 	}
 	sockets := make([]string, 0, len(node.Sockets))
 	for key := range node.Sockets {
@@ -457,7 +465,7 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 	preparePool := make([]MsgPoolItem, 0, len(node.PreparePool.mapPool))
-	for txHash, msgs := range node.PreparePool.mapPool {
+	for blockHash, msgs := range node.PreparePool.mapPool {
 		fromWhos := make([]FromWho, 0, len(msgs))
 		for index, msg := range msgs {
 			fromWhos = append(fromWhos, FromWho{
@@ -466,12 +474,12 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 			})
 		}
 		preparePool = append(preparePool, MsgPoolItem{
-			TxHash:   txHash[:6],
-			FromWhos: fromWhos,
+			BlockHash: blockHash[:6],
+			FromWhos:  fromWhos,
 		})
 	}
 	commitPool := make([]MsgPoolItem, 0, len(node.CommitPool.mapPool))
-	for txHash, msgs := range node.CommitPool.mapPool {
+	for blockHash, msgs := range node.CommitPool.mapPool {
 		fromWhos := make([]FromWho, 0, len(msgs))
 		for index, msg := range msgs {
 			fromWhos = append(fromWhos, FromWho{
@@ -480,12 +488,12 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 			})
 		}
 		commitPool = append(commitPool, MsgPoolItem{
-			TxHash:   txHash[:6],
-			FromWhos: fromWhos,
+			BlockHash: blockHash[:6],
+			FromWhos:  fromWhos,
 		})
 	}
 	rcPool := make([]MsgPoolItem, 0, len(node.RCPool.mapPool))
-	for txHash, msgs := range node.RCPool.mapPool {
+	for blockHash, msgs := range node.RCPool.mapPool {
 		fromWhos := make([]FromWho, 0, len(msgs))
 		for index, msg := range msgs {
 			fromWhos = append(fromWhos, FromWho{
@@ -494,8 +502,8 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 			})
 		}
 		rcPool = append(rcPool, MsgPoolItem{
-			TxHash:   txHash[:6],
-			FromWhos: fromWhos,
+			BlockHash: blockHash[:6],
+			FromWhos:  fromWhos,
 		})
 	}
 

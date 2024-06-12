@@ -84,7 +84,7 @@ func Genesis() *Block {
 		[]byte("------"),
 		[]byte("------"),
 		nil,
-		nil,
+		[]byte("------"),
 		[]byte("------"),
 		0,
 		nil,
