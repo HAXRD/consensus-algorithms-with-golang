@@ -200,6 +200,7 @@ func (tp *TransactionPool) VerifyTx(tx Transaction) bool {
 	return tx.VerifyTx()
 }
 
+// TransferInProgressToCommitted transfers txs from in-progress to committed
 func (tp *TransactionPool) TransferInProgressToCommitted(txs []Transaction) bool {
 	// check if all txs passed-in exist in "in-progress"
 	for _, tx := range txs {
@@ -214,4 +215,11 @@ func (tp *TransactionPool) TransferInProgressToCommitted(txs []Transaction) bool
 		tp.committed[tx.Id] = tx
 	}
 	return true
+}
+
+// Clear clears all subPools in tx pool
+func (tp *TransactionPool) Clear() {
+	tp.pool = tp.pool[:0]
+	tp.inProgress = make(map[string]Transaction)
+	tp.committed = make(map[string]Transaction)
 }

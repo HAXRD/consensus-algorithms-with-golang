@@ -173,3 +173,8 @@ func (bp *BlockPool) CleanPool(hash []byte) bool {
 		return false
 	}
 }
+
+// Clear clears contents of block pool
+func (bp *BlockPool) Clear() {
+	bp.pool = bp.pool[:0]
+}

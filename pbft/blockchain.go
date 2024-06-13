@@ -88,3 +88,8 @@ func (bc *Blockchain) VerifyBlock(block Block) bool {
 		return false
 	}
 }
+
+// Clear clears the content of chain
+func (bc *Blockchain) Clear() {
+	bc.chain = bc.chain[:1]
+}

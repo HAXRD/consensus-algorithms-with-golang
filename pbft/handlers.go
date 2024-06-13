@@ -393,6 +393,7 @@ type MsgPoolItem struct {
 
 // Data defines the data object sent to frontend server for display
 type Data struct {
+	NodeAddress string          `json:"nodeAddress"`
 	NodeHash    string          `json:"nodeHash"`
 	BlockChain  []BlockInfo     `json:"blockchain"`
 	Sockets     []string        `json:"sockets"`
@@ -405,6 +406,7 @@ type Data struct {
 
 func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	nodeAddress := fmt.Sprintf("http://%s:%d", node.Host, node.Port)
 	nodeHash := chain_util.BytesToHex(node.Wallet.publicKey)[:6]
 	blockChain := make([]BlockInfo, 0, len(node.Blockchain.chain))
 	for _, block := range node.Blockchain.chain {
@@ -484,6 +486,7 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	data := Data{
+		NodeAddress: nodeAddress,
 		NodeHash:    nodeHash,
 		BlockChain:  blockChain,
 		Sockets:     sockets,
@@ -498,4 +501,14 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+func (node *Node) resetHandler(w http.ResponseWriter, r *http.Request) {
+	node.Blockchain.Clear()
+	node.TxPool.Clear()
+	node.BlockPool.Clear()
+	node.PreparePool.Clear()
+	node.CommitPool.Clear()
+	node.RCPool.Clear()
+	log.Println("NODE RESET!!!")
 }

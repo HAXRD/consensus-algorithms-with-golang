@@ -220,6 +220,7 @@ func (node *Node) Listen(peers []string) {
 	mux.HandleFunc("/queryNodeInfo2", node.queryNodeInfo2Handler)
 	mux.HandleFunc("/queryNodeInfo", node.queryNodeInfoHandler)
 	mux.HandleFunc("/makeTx", node.makeTxHandler)
+	mux.HandleFunc("/reset", node.resetHandler)
 	go node.launchHttpServer(mux)
 
 	// websocket server
