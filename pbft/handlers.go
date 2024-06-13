@@ -499,3 +499,13 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 		log.Println(err)
 	}
 }
+
+func (node *Node) resetHandler(w http.ResponseWriter, r *http.Request) {
+	node.Blockchain.Clear()
+	node.TxPool.Clear()
+	node.BlockPool.Clear()
+	node.PreparePool.Clear()
+	node.CommitPool.Clear()
+	node.RCPool.Clear()
+	log.Println("NODE RESET!!!")
+}

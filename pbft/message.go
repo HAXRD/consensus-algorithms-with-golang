@@ -119,3 +119,8 @@ func (mp *MsgPool) CleanPool(hash []byte) bool {
 		return false
 	}
 }
+
+// Clear clears the content of msg pool
+func (mp *MsgPool) Clear() {
+	mp.mapPool = make(map[string][]Message)
+}
