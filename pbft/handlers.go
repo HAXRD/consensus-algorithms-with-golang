@@ -371,7 +371,6 @@ type BlockInfo struct {
 }
 
 type TxPoolItem struct {
-	Index  int    `json:"index"`
 	Hash   string `json:"hash"`
 	PubKey string `json:"pubKey"`
 }
@@ -383,19 +382,13 @@ type TxPoolInfo struct {
 }
 
 type BlockPoolItem struct {
-	Index     int    `json:"index"`
 	BlockHash string `json:"blockHash"`
 	PubKey    string `json:"pubKey"`
 }
 
-type FromWho struct {
-	Index  int    `json:"index"`
-	PubKey string `json:"pubKey"`
-}
-
 type MsgPoolItem struct {
-	BlockHash string    `json:"blockHash"`
-	FromWhos  []FromWho `json:"fromWhos"`
+	BlockHash string   `json:"blockHash"`
+	FromWhos  []string `json:"fromWhos"`
 }
 
 // Data defines the data object sent to frontend server for display
@@ -432,46 +425,35 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 	}
 	for i, transaction := range node.TxPool.pool {
 		txPool.Waiting[i] = TxPoolItem{
-			Index:  i,
 			Hash:   chain_util.BytesToHex(transaction.Hash)[:6],
 			PubKey: chain_util.BytesToHex(transaction.From)[:6],
 		}
 	}
-	var index int = 0
 	for _, transaction := range node.TxPool.inProgress {
 		txPool.InProgress = append(txPool.InProgress, TxPoolItem{
-			Index:  index,
 			Hash:   chain_util.BytesToHex(transaction.Hash)[:6],
 			PubKey: chain_util.BytesToHex(transaction.From)[:6],
 		})
-		index += 1
 	}
-	index = 0
 	for _, transaction := range node.TxPool.committed {
 		txPool.Committed = append(txPool.Committed, TxPoolItem{
-			Index:  index,
 			Hash:   chain_util.BytesToHex(transaction.Hash)[:6],
 			PubKey: chain_util.BytesToHex(transaction.From)[:6],
 		})
-		index += 1
 	}
 
 	blockPool := make([]BlockPoolItem, 0, len(node.BlockPool.pool))
-	for i, block := range node.BlockPool.pool {
+	for _, block := range node.BlockPool.pool {
 		blockPool = append(blockPool, BlockPoolItem{
-			Index:     i,
 			BlockHash: chain_util.BytesToHex(block.Hash)[:6],
 			PubKey:    chain_util.BytesToHex(block.Proposer)[:6],
 		})
 	}
 	preparePool := make([]MsgPoolItem, 0, len(node.PreparePool.mapPool))
 	for blockHash, msgs := range node.PreparePool.mapPool {
-		fromWhos := make([]FromWho, 0, len(msgs))
-		for index, msg := range msgs {
-			fromWhos = append(fromWhos, FromWho{
-				Index:  index,
-				PubKey: chain_util.BytesToHex(msg.PublicKey)[:6],
-			})
+		fromWhos := make([]string, 0, len(msgs))
+		for _, msg := range msgs {
+			fromWhos = append(fromWhos, chain_util.BytesToHex(msg.PublicKey)[:6])
 		}
 		preparePool = append(preparePool, MsgPoolItem{
 			BlockHash: blockHash[:6],
@@ -480,12 +462,9 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 	}
 	commitPool := make([]MsgPoolItem, 0, len(node.CommitPool.mapPool))
 	for blockHash, msgs := range node.CommitPool.mapPool {
-		fromWhos := make([]FromWho, 0, len(msgs))
-		for index, msg := range msgs {
-			fromWhos = append(fromWhos, FromWho{
-				Index:  index,
-				PubKey: chain_util.BytesToHex(msg.PublicKey)[:6],
-			})
+		fromWhos := make([]string, 0, len(msgs))
+		for _, msg := range msgs {
+			fromWhos = append(fromWhos, chain_util.BytesToHex(msg.PublicKey)[:6])
 		}
 		commitPool = append(commitPool, MsgPoolItem{
 			BlockHash: blockHash[:6],
@@ -494,12 +473,9 @@ func (node *Node) queryNodeInfo2Handler(w http.ResponseWriter, r *http.Request) 
 	}
 	rcPool := make([]MsgPoolItem, 0, len(node.RCPool.mapPool))
 	for blockHash, msgs := range node.RCPool.mapPool {
-		fromWhos := make([]FromWho, 0, len(msgs))
-		for index, msg := range msgs {
-			fromWhos = append(fromWhos, FromWho{
-				Index:  index,
-				PubKey: chain_util.BytesToHex(msg.PublicKey)[:6],
-			})
+		fromWhos := make([]string, 0, len(msgs))
+		for _, msg := range msgs {
+			fromWhos = append(fromWhos, chain_util.BytesToHex(msg.PublicKey)[:6])
 		}
 		rcPool = append(rcPool, MsgPoolItem{
 			BlockHash: blockHash[:6],
