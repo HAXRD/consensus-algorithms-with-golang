@@ -128,15 +128,18 @@ func (node *Node) makeTxHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (node *Node) broadcast(msg string) {
-	time.Sleep(3 * time.Second)
-	mutex.Lock()
-	defer mutex.Unlock()
-	for url, conn := range node.Sockets {
-		err := conn.WriteMessage(websocket.TextMessage, []byte(msg))
-		if err != nil {
-			log.Printf("Error broadcasting message [%s] to [%s], %v", msg, url, err)
-			conn.Close()
-			delete(node.Sockets, url)
+	if _, ok := node.hasBroadcastSet[msg]; !ok {
+		node.hasBroadcastSet[msg] = true
+		time.Sleep(3 * time.Second)
+		mutex.Lock()
+		defer mutex.Unlock()
+		for url, conn := range node.Sockets {
+			err := conn.WriteMessage(websocket.TextMessage, []byte(msg))
+			if err != nil {
+				log.Printf("Error broadcasting message [%s] to [%s], %v", msg, url, err)
+				conn.Close()
+				delete(node.Sockets, url)
+			}
 		}
 	}
 }
@@ -251,4 +254,16 @@ func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func (node *Node) resetHandler(w http.ResponseWriter, r *http.Request) {
+	mutex.Lock()
+	node.Blockchain.Clear()
+	node.TxPool.Clear()
+	node.hasBroadcastSet = make(map[string]bool)
+	if node.cancel != nil {
+		node.cancel()
+	}
+	mutex.Unlock()
+	log.Printf("NODE-[%s] RESET!!!", pow_util.Byte2Hex(node.Wallet.pubKey)[:6])
 }

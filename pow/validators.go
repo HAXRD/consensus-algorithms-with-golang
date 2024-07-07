@@ -12,7 +12,7 @@ type Validators struct {
 func NewValidators(n int) *Validators {
 	list := make([]PublicKey, n)
 	for i := range n {
-		list[i] = NewWallet("NODE-" + strconv.Itoa(i)).pubKey
+		list[i] = NewWallet("NODE-" + strconv.Itoa(i+1)).pubKey
 	}
 	return &Validators{list}
 }

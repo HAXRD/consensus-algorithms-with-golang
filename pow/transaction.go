@@ -160,3 +160,8 @@ func (txp *TxPool) UpdateCommitted(block Block, blocksThatWereOverwritten []Bloc
 		txp.committed[tx.Id] = tx
 	}
 }
+
+func (txp *TxPool) Clear() {
+	txp.waiting = make(map[string]Transaction)
+	txp.committed = make(map[string]Transaction)
+}

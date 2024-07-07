@@ -32,23 +32,28 @@ type Node struct {
 	Blockchain  Blockchain
 	Wallet      Wallet
 	TxPool      TxPool
+
+	hasBroadcastSet map[string]bool
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
 func NewNode(host string, wsPort uint64, difficulty uint64, numOfMiners uint64,
 	vs Validators, bc Blockchain, w Wallet, txp TxPool) *Node {
 	node := &Node{
-		Host:        host,
-		WsPort:      wsPort,
-		Port:        wsPort + 10000,
-		Sockets:     make(map[string]*websocket.Conn),
-		Relay:       nil,
-		Difficulty:  difficulty,
-		NumOfMiners: numOfMiners,
-		Miners:      make([]string, numOfMiners),
-		Validators:  vs,
-		Blockchain:  bc,
-		Wallet:      w,
-		TxPool:      txp,
+		Host:            host,
+		WsPort:          wsPort,
+		Port:            wsPort + 10000,
+		Sockets:         make(map[string]*websocket.Conn),
+		Relay:           nil,
+		Difficulty:      difficulty,
+		NumOfMiners:     numOfMiners,
+		Miners:          make([]string, numOfMiners),
+		Validators:      vs,
+		Blockchain:      bc,
+		Wallet:          w,
+		TxPool:          txp,
+		hasBroadcastSet: make(map[string]bool),
 	}
 	log.Printf("Node-[%s]\n", pow_util.Byte2Hex(node.Wallet.pubKey)[:4])
 	return node
@@ -62,7 +67,7 @@ func (node *Node) Listen(peers []string) {
 	//mux.HandleFunc("/addMiner", node.addMinerHandler)
 	//mux.HandleFunc("/removeMiner", node.removeMinerHandler)
 	mux.HandleFunc("/makeTx", node.makeTxHandler)
-	//mux.HandleFunc("/reset", node.resetHandler)
+	mux.HandleFunc("/reset", node.resetHandler)
 	go node.launchHttpServer(mux)
 
 	// websocket server
@@ -191,13 +196,13 @@ func (node *Node) launchPeer(peerUrl string) {
 	}
 }
 
-func (node *Node) miner(ctx context.Context, id int, fetchedTxs []Transaction,
+func (node *Node) miner(id int, fetchedTxs []Transaction,
 	wg *sync.WaitGroup, proposedBlockChan chan<- Block) {
 
 	defer wg.Done()
 	for {
 		select {
-		case <-ctx.Done():
+		case <-node.ctx.Done():
 			//log.Printf("Miner [%d] stopping due to cancellation or timeout\n", id)
 			return
 		default:
@@ -245,17 +250,17 @@ func (node *Node) launchMiners() {
 
 		// skip if `waiting` is empty
 		if numOfTxs == 0 {
-			//log.Println("Current period has [0] txs, no mining in this period!\b")
+			log.Println("Current period has [0] txs, no mining in this period!\b")
 			continue
 		}
 
 		// create a cancellable context with a timeout
-		ctx, cancel := context.WithTimeout(context.Background(), UPDATE_INTERVAL)
+		node.ctx, node.cancel = context.WithTimeout(context.Background(), UPDATE_INTERVAL)
 
 		// launch miners
 		for i := 0; i < int(node.NumOfMiners); i++ {
 			wg.Add(1)
-			go node.miner(ctx, i, waitingSlice, &wg, proposedBlockChan)
+			go node.miner(i, waitingSlice, &wg, proposedBlockChan)
 		}
 
 		// wait for one miner to find the target or timeout
@@ -264,18 +269,18 @@ func (node *Node) launchMiners() {
 			msgStr, err := WrapData2MsgStr(block)
 			if err != nil {
 				log.Printf("Marshal block failed, [%s]\n", err)
-				cancel()
+				node.cancel()
 				return
 			}
 			err = node.Relay.WriteMessage(websocket.TextMessage, msgStr)
-			cancel()
-		case <-ctx.Done():
+			node.cancel()
+		case <-node.ctx.Done():
 			log.Printf("Timeout reached!")
 		}
 
 		// wait for all miners to stop
 		wg.Wait()
 		// ensure all contexts are cancelled
-		cancel()
+		node.cancel()
 	}
 }
