@@ -2,6 +2,7 @@ package pow
 
 import (
 	"consensus-algorithms-with-golang/pow/pow_util"
+	"context"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
@@ -31,17 +32,11 @@ type Node struct {
 	Blockchain  Blockchain
 	Wallet      Wallet
 	TxPool      TxPool
-
-	fetchChan       chan []Transaction
-	doneChan        chan struct{}
-	addMinerChan    chan struct{}
-	removeMinerChan chan struct{}
-	wg              sync.WaitGroup
 }
 
 func NewNode(host string, wsPort uint64, difficulty uint64, numOfMiners uint64,
 	vs Validators, bc Blockchain, w Wallet, txp TxPool) *Node {
-	return &Node{
+	node := &Node{
 		Host:        host,
 		WsPort:      wsPort,
 		Port:        wsPort + 10000,
@@ -49,16 +44,14 @@ func NewNode(host string, wsPort uint64, difficulty uint64, numOfMiners uint64,
 		Relay:       nil,
 		Difficulty:  difficulty,
 		NumOfMiners: numOfMiners,
+		Miners:      make([]string, numOfMiners),
 		Validators:  vs,
 		Blockchain:  bc,
 		Wallet:      w,
 		TxPool:      txp,
-
-		fetchChan:       make(chan []Transaction, 1),
-		doneChan:        make(chan struct{}),
-		addMinerChan:    make(chan struct{}),
-		removeMinerChan: make(chan struct{}),
 	}
+	log.Printf("Node-[%s]\n", pow_util.Byte2Hex(node.Wallet.pubKey)[:4])
+	return node
 }
 
 func (node *Node) Listen(peers []string) {
@@ -81,9 +74,6 @@ func (node *Node) Listen(peers []string) {
 
 	// peers
 	node.connectPeers(peers)
-
-	// launch periodicallyFetch goroutine
-	go node.periodicallyFetch()
 
 	// launch miners
 	node.launchMiners()
@@ -201,71 +191,21 @@ func (node *Node) launchPeer(peerUrl string) {
 	}
 }
 
-func (node *Node) periodicallyFetch() {
-	for {
-		time.Sleep(UPDATE_INTERVAL * time.Second)
+func (node *Node) miner(ctx context.Context, id int, fetchedTxs []Transaction,
+	wg *sync.WaitGroup, proposedBlockChan chan<- Block) {
 
-		// only periodicallyFetch when `waiting` is not empty
-		numOfTxs := len(node.TxPool.waiting)
-		mutex.Lock()
-		if numOfTxs > 0 {
-			// convert map into slice
-			waitingSlice := make([]Transaction, 0, numOfTxs)
-			for _, tx := range node.TxPool.waiting {
-				waitingSlice = append(waitingSlice, tx)
-			}
-			node.fetchChan <- waitingSlice
-			log.Printf("Fetched [%d] txs from waiting", numOfTxs)
-		} else {
-			log.Printf("Waiting pool is empty, nothing to fetch")
-		}
-		mutex.Unlock()
-	}
-}
-
-func (node *Node) miner(id int) {
-	defer node.wg.Done()
+	defer wg.Done()
 	for {
 		select {
-		case fetchedTxs := <-node.fetchChan:
-			// timeout go routine
-			timeoutChan := make(chan struct{})
-			go func() {
-				time.Sleep((UPDATE_INTERVAL - 1) * time.Second)
-				close(timeoutChan)
-			}()
-
-			block := node.tryPropose(timeoutChan, fetchedTxs)
-			if block != nil {
-				// Write to WsClient(Relay)
-				msgStr, err := WrapData2MsgStr(*block)
-				if err != nil {
-					log.Printf("Marshal block failed, [%s]\n", err)
-					return
-				}
-				mutex.Lock()
-				err = node.Relay.WriteMessage(websocket.TextMessage, msgStr)
-				log.Printf("Miner [%d] proposed a block [%s]!\n", id, pow_util.Byte2Hex(block.Hash)[:node.Difficulty+4])
-				mutex.Unlock()
-			} else {
-				log.Printf("Miner [%d] timeout reached!\n", id)
-			}
-		case <-node.doneChan:
-			fmt.Printf("Miner [%d] stopped\n", id)
-		}
-	}
-}
-
-func (node *Node) tryPropose(timeoutChan chan struct{}, fetchedTxs []Transaction) *Block {
-	for {
-		select {
-		case <-timeoutChan:
-			return nil
+		case <-ctx.Done():
+			//log.Printf("Miner [%d] stopping due to cancellation or timeout\n", id)
+			return
 		default:
-			// generate a random nonce
+			// try proposing a block
 			nonce := rand.Uint64()
 			lastHash := node.Blockchain.chain[len(node.Blockchain.chain)-1].Hash
 			hash := HashBlock(lastHash, fetchedTxs, nonce)
+			node.Miners[id] = pow_util.Byte2Hex(hash)
 			// check if meets difficulty requirement
 			if pow_util.HashMeetsDifficulty(hash, node.Difficulty) {
 				// propose a block
@@ -273,16 +213,69 @@ func (node *Node) tryPropose(timeoutChan chan struct{}, fetchedTxs []Transaction
 				proposer := node.Wallet.pubKey
 				signature := node.Wallet.Sign(hash)
 				block := node.Wallet.CreateBlock(timestamp, lastHash, hash, fetchedTxs, proposer, signature, nonce)
-				return block
+				mutex.Lock()
+				proposedBlockChan <- *block
+				log.Printf("Miner [%d] proposed a block [%s]!\n", id, pow_util.Byte2Hex(block.Hash)[:node.Difficulty+4])
+				mutex.Unlock()
+				return
 			}
 		}
 	}
 }
 
 func (node *Node) launchMiners() {
-	for i := 0; i < int(node.NumOfMiners); i++ {
-		node.wg.Add(1)
-		go node.miner(i + 1)
-		log.Printf("Miner [%d] online...\n", i+1)
+	var wg sync.WaitGroup
+	proposedBlockChan := make(chan Block)
+
+	// periodically fetch txs from `waiting` and launch miners
+	for {
+		time.Sleep(UPDATE_INTERVAL)
+
+		// copy txs from `waiting`
+		mutex.Lock()
+		numOfTxs := len(node.TxPool.waiting)
+		waitingSlice := make([]Transaction, 0, numOfTxs)
+		if numOfTxs > 0 {
+			// convert map to slice
+			for _, tx := range node.TxPool.waiting {
+				waitingSlice = append(waitingSlice, tx)
+			}
+		}
+		mutex.Unlock()
+
+		// skip if `waiting` is empty
+		if numOfTxs == 0 {
+			//log.Println("Current period has [0] txs, no mining in this period!\b")
+			continue
+		}
+
+		// create a cancellable context with a timeout
+		ctx, cancel := context.WithTimeout(context.Background(), UPDATE_INTERVAL)
+
+		// launch miners
+		for i := 0; i < int(node.NumOfMiners); i++ {
+			wg.Add(1)
+			go node.miner(ctx, i, waitingSlice, &wg, proposedBlockChan)
+		}
+
+		// wait for one miner to find the target or timeout
+		select {
+		case block := <-proposedBlockChan:
+			msgStr, err := WrapData2MsgStr(block)
+			if err != nil {
+				log.Printf("Marshal block failed, [%s]\n", err)
+				cancel()
+				return
+			}
+			err = node.Relay.WriteMessage(websocket.TextMessage, msgStr)
+			cancel()
+		case <-ctx.Done():
+			log.Printf("Timeout reached!")
+		}
+
+		// wait for all miners to stop
+		wg.Wait()
+		// ensure all contexts are cancelled
+		cancel()
 	}
 }

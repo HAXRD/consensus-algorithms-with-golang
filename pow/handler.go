@@ -38,14 +38,17 @@ func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 	nodeHash := pow_util.Byte2Hex(node.Wallet.pubKey)
 
-	miners := make([]MinerInfo, 0, len(node.Miners))
+	mutex.Lock()
+	miners := make([]MinerInfo, node.NumOfMiners)
 	for i, miner := range node.Miners {
 		miners[i] = MinerInfo{miner}
 	}
+	mutex.Unlock()
 
-	blockchain := make([]BlockInfo, 0, len(node.Blockchain.chain))
+	mutex.Lock()
+	blockchain := make([]BlockInfo, len(node.Blockchain.chain))
 	for i, block := range node.Blockchain.chain {
-		txs := make([]string, 0, len(block.Data))
+		txs := make([]string, len(block.Data))
 		for j, tx := range block.Data {
 			txs[j] = pow_util.Byte2Hex(tx.Hash)
 		}
@@ -58,6 +61,7 @@ func (node *Node) queryNodeInfoHandler(w http.ResponseWriter, r *http.Request) {
 			Txs:       txs,
 		}
 	}
+	mutex.Unlock()
 
 	data := Data{
 		Difficulty:  node.Difficulty,
@@ -215,10 +219,13 @@ func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 							mutex.Lock()
 							node.Blockchain.AddBlock(block)
 							node.TxPool.UpdateCommitted(block, nil)
-							log.Printf("Added block [%s] with [%d] txs to blockchain\nBlock proposed at [%s]\n",
+							log.Printf(
+								"Added block [%s] with [%d] txs to blockchain\n"+
+									"Block proposed at [%s] by Node-[%s]\n",
 								pow_util.Byte2Hex(block.Hash)[:node.Difficulty+4],
 								len(block.Data),
-								block.Timestamp)
+								block.Timestamp,
+								pow_util.Byte2Hex(block.Proposer)[:4])
 							mutex.Unlock()
 						} else if node.Blockchain.BlockConflicts(block) &&
 							node.Blockchain.Overwritable(block) {
@@ -226,10 +233,13 @@ func (node *Node) wsServerHandler(w http.ResponseWriter, r *http.Request) {
 							mutex.Lock()
 							blocksThatWereOverwritten := node.Blockchain.OverwriteBlock(block)
 							node.TxPool.UpdateCommitted(block, blocksThatWereOverwritten)
-							log.Printf("Overwrite blocks with block [%s] with [%d] txs to blockchain\nBlock proposed at [%s]\n",
+							log.Printf(
+								"Overwrite blocks with block [%s] with [%d] new txs to blockchain\n"+
+									"Block proposed at [%s] by Node-[%s]\n",
 								pow_util.Byte2Hex(block.Hash)[:node.Difficulty+4],
 								len(block.Data),
-								block.Timestamp)
+								block.Timestamp,
+								pow_util.Byte2Hex(block.Proposer)[:4])
 							mutex.Unlock()
 						}
 						// broadcast
